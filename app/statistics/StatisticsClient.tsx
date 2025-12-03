@@ -113,13 +113,19 @@ export default function StatisticsClient({ user }: { user: User }) {
     const loadData = async () => {
       setLoading(true)
       try {
+        console.log('📊 Starting statistics load...')
         await fetchStatistics()
+        console.log('✓ fetchStatistics done')
         await fetchYoYComparison()
+        console.log('✓ fetchYoYComparison done')
         await fetchMoMComparison()
+        console.log('✓ fetchMoMComparison done')
         await fetchBiggestCategoryChange()
+        console.log('✓ fetchBiggestCategoryChange done')
       } catch (error) {
-        console.error('Error loading statistics:', error)
+        console.error('❌ Error loading statistics:', error)
       } finally {
+        console.log('✓ Loading complete, setting loading to false')
         setLoading(false)
       }
     }
@@ -128,22 +134,34 @@ export default function StatisticsClient({ user }: { user: User }) {
 
   const fetchStatistics = async () => {
     try {
+      console.log('📊 Fetching expenses and incomes...')
       // Fetch current month stats
       const expensesRes = await fetch(`/api/expenses?month=${currentMonth}&year=${currentYear}`)
       const incomesRes = await fetch(`/api/incomes?month=${currentMonth}&year=${currentYear}`)
       
+      console.log('API responses:', { expensesOk: expensesRes.ok, incomesOk: incomesRes.ok })
+      
       if (!expensesRes.ok || !incomesRes.ok) {
         // If unauthorized, redirect to login
         if (expensesRes.status === 401 || incomesRes.status === 401) {
+          console.log('❌ Unauthorized, redirecting to login')
           router.push('/login')
           return
         }
-        console.error('Failed to fetch data')
+        console.error('❌ Failed to fetch data', { 
+          expensesStatus: expensesRes.status, 
+          incomesStatus: incomesRes.status 
+        })
         return
       }
       
       const expensesData = await expensesRes.json()
       const incomesData = await incomesRes.json()
+      
+      console.log('✓ Data fetched:', { 
+        expenses: expensesData.length, 
+        incomes: incomesData.length 
+      })
 
       const totalExpenses = expensesData.reduce((sum: number, exp: any) => sum + exp.amount, 0)
       const totalIncomes = incomesData.reduce((sum: number, inc: any) => sum + inc.amount, 0)
@@ -154,7 +172,14 @@ export default function StatisticsClient({ user }: { user: User }) {
         balance: totalIncomes - totalExpenses
       })
 
-      // Fetch 12 months historical data
+      // Fetch ALL expenses and incomes once (much faster than 12 separate calls)
+      const allExpensesRes = await fetch('/api/expenses')
+      const allIncomesRes = await fetch('/api/incomes')
+      
+      const allExpenses = allExpensesRes.ok ? await allExpensesRes.json() : []
+      const allIncomes = allIncomesRes.ok ? await allIncomesRes.json() : []
+      
+      // Group by month for last 12 months
       const monthsData: MonthlyData[] = []
       let totalExpSum = 0
       let totalIncSum = 0
@@ -164,11 +189,16 @@ export default function StatisticsClient({ user }: { user: User }) {
         const m = date.getMonth() + 1
         const y = date.getFullYear()
         
-        const expRes = await fetch(`/api/expenses?month=${m}&year=${y}`)
-        const incRes = await fetch(`/api/incomes?month=${m}&year=${y}`)
+        // Filter client-side
+        const exp = allExpenses.filter((e: any) => {
+          const expDate = new Date(e.date)
+          return expDate.getMonth() + 1 === m && expDate.getFullYear() === y
+        })
         
-        const exp = expRes.ok ? await expRes.json() : []
-        const inc = incRes.ok ? await incRes.json() : []
+        const inc = allIncomes.filter((i: any) => {
+          const incDate = new Date(i.date)
+          return incDate.getMonth() + 1 === m && incDate.getFullYear() === y
+        })
         
         const expTotal = exp.reduce((sum: number, e: any) => sum + e.amount, 0)
         const incTotal = inc.reduce((sum: number, i: any) => sum + i.amount, 0)
