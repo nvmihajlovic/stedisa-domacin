@@ -104,6 +104,13 @@ export default function StatisticsPage() {
   const dayNames = ['Ned', 'Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub']
 
   useEffect(() => {
+    // Check if user is logged in
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/login')
+      return
+    }
+
     const loadData = async () => {
       setLoading(true)
       try {
@@ -127,7 +134,13 @@ export default function StatisticsPage() {
       const incomesRes = await fetch(`/api/incomes?month=${currentMonth}&year=${currentYear}`)
       
       if (!expensesRes.ok || !incomesRes.ok) {
-        throw new Error('Failed to fetch data')
+        // If unauthorized, redirect to login
+        if (expensesRes.status === 401 || incomesRes.status === 401) {
+          router.push('/login')
+          return
+        }
+        console.error('Failed to fetch data')
+        return
       }
       
       const expensesData = await expensesRes.json()
