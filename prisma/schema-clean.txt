@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  currency  String   @default("RSD")
+  language  String   @default("sr")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses          Expense[]
+  incomes           Income[]
+  categories        Category[]
+  incomeCategories  IncomeCategory[]
+  recurringExpenses RecurringExpense[]
+  recurringIncomes  RecurringIncome[]
+  groupMemberships  GroupMember[]
+  ownedGroups       Group[]
+  ocrLogs           OCRLog[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  icon        String?
+  color       String?
+  parentId    String?
+  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[] @relation("CategoryHierarchy")
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses    Expense[]
+  createdAt   DateTime  @default(now())
+  
+  @@unique([userId, name])
+}
+
+model IncomeCategory {
+  id                String   @id @default(cuid())
+  name              String
+  icon              String?
+  color             String?
+  isLoanRepayment   Boolean  @default(false)
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes           Income[]
+  createdAt         DateTime @default(now())
+  
+  @@unique([userId, name])
+}
+
+model Expense {
+  id                String    @id @default(cuid())
+  amount            Float
+  description       String
+  date              DateTime
+  categoryId        String
+  category          Category  @relation(fields: [categoryId], references: [id])
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  receiptUrl        String?
+  isRecurring       Boolean   @default(false)
+  recurringExpenseId String?
+  recurringExpense  RecurringExpense? @relation(fields: [recurringExpenseId], references: [id])
+  groupId           String?
+  group             Group?    @relation(fields: [groupId], references: [id])
+  splitAmount       Float?
+  paidBy            String?
+  currency            String?
+  note                String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Income {
+  id                  String          @id @default(cuid())
+  amount              Float
+  description         String
+  date                DateTime
+  categoryId          String
+  category            IncomeCategory  @relation(fields: [categoryId], references: [id])
+  userId              String
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isRecurring         Boolean         @default(false)
+  recurringIncomeId   String?
+  recurringIncome     RecurringIncome? @relation(fields: [recurringIncomeId], references: [id])
+  loanRepaymentAmount Float?
+  currency            String?
+  note                String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+model RecurringExpense {
+  id              String    @id @default(cuid())
+  amount          Float
+  description     String
+  categoryId      String
+  frequency       String    // monthly, weekly, yearly
+  dayOfMonth      Int?
+  dayOfWeek       Int?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive        Boolean   @default(true)
+  nextExecutionAt DateTime
+  expenses        Expense[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model RecurringIncome {
+  id              String    @id @default(cuid())
+  amount          Float
+  description     String
+  categoryId      String
+  frequency       String    // monthly, weekly, yearly
+  dayOfMonth      Int?
+  dayOfWeek       Int?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive        Boolean   @default(true)
+  reminderEnabled Boolean   @default(true)
+  nextExecutionAt DateTime
+  incomes         Income[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  expenses    Expense[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model GroupMember {
+  id          String   @id @default(cuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   @default("member") // owner, admin, member
+  permissions String   @default("view,add") // comma-separated: view,add,edit,delete
+  joinedAt    DateTime @default(now())
+  
+  @@unique([groupId, userId])
+}
+
+model OCRLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageUrl    String
+  extractedData Json?
+  status      String   // pending, success, failed
+  errorMessage String?
+  createdAt   DateTime @default(now())
+}

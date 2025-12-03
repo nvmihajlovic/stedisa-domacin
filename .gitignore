@@ -39,3 +39,29 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database
+*.db
+*.db-journal
+prisma/dev.db*
+
+# backup files
+*.backup
+*_backup.*
+temp_*
+
+# test scripts
+test-*.js
+test-*.mjs
+check-*.js
+delete-*.js
+fix-*.js
+cleanup-*.js
+create-*.js
+set-*.js
+update-*.js
+list-*.js
+*.bat
+
+# OCR training data
+*.traineddata

@@ -1,0 +1,343 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  currency  String   @default("RSD")
+  language  String   @default("sr")
+  role      String   @default("user")  // "user", "admin"
+  status    String   @default("active") // "active", "blocked"
+  emailVerified         Boolean  @default(false)
+  verificationToken     String?  @unique
+  verificationTokenExpiry DateTime?
+  resetToken            String?  @unique
+  resetTokenExpiry      DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile settings (added for profile page)
+  username                String?
+  phone                   String?
+  dateFormat              String?
+  timezone                String?   @default("Europe/Belgrade")
+  notifications           Boolean?  @default(true)
+  recurringNotifications  Boolean?  @default(true)
+  aiAssistantEnabled      Boolean?  @default(true)
+  
+  // Personalization settings
+  theme                   String?
+  primaryColor            String?
+  fontSize                String?
+  chartType               String?
+
+  expenses          Expense[]
+  incomes           Income[]
+  categories        Category[]
+  incomeCategories  IncomeCategory[]
+  recurringExpenses RecurringExpense[]
+  recurringIncomes  RecurringIncome[]
+  groupMemberships  GroupMember[]
+  ownedGroups       Group[]
+  ocrLogs           OCRLog[]
+  vendorMappings    VendorCategoryMapping[]
+  budgets           Budget[]
+  userNotifications Notification[]
+  splitsPaidBy      Split[]  @relation("SplitPaidBy")
+  splitsOwedBy      Split[]  @relation("SplitOwedBy")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  icon        String?
+  color       String?
+  isActive    Boolean   @default(true)
+  parentId    String?
+  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[] @relation("CategoryHierarchy")
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses    Expense[]
+  vendorMappings VendorCategoryMapping[]
+  budgets     Budget[]
+  createdAt   DateTime  @default(now())
+  
+  @@unique([userId, name])
+}
+
+model IncomeCategory {
+  id                String   @id @default(cuid())
+  name              String
+  icon              String?
+  color             String?
+  isActive          Boolean  @default(true)
+  isLoanRepayment   Boolean  @default(false)
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes           Income[]
+  createdAt         DateTime @default(now())
+  
+  @@unique([userId, name])
+}
+
+model Expense {
+  id                String    @id @default(cuid())
+  amount            Float
+  amountInRSD       Float?    // Converted amount in RSD for statistics
+  description       String
+  date              DateTime
+  categoryId        String
+  category          Category  @relation(fields: [categoryId], references: [id])
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  receiptUrl        String?
+  isRecurring       Boolean   @default(false)
+  recurringExpenseId String?
+  recurringExpense  RecurringExpense? @relation(fields: [recurringExpenseId], references: [id])
+  groupId           String?
+  group             Group?    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  splitAmount       Float?
+  paidBy            String?
+  currency            String?
+  note                String?
+  paymentMethod       String?   @default("cash") // "cash", "card", "bank"
+  splits              Split[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Income {
+  id                  String          @id @default(cuid())
+  amount              Float
+  amountInRSD         Float?          // Converted amount in RSD for statistics
+  description         String
+  date                DateTime
+  categoryId          String
+  category            IncomeCategory  @relation(fields: [categoryId], references: [id])
+  userId              String
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isRecurring         Boolean         @default(false)
+  recurringIncomeId   String?
+  recurringIncome     RecurringIncome? @relation(fields: [recurringIncomeId], references: [id])
+  groupId             String?
+  group               Group?          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  loanRepaymentAmount Float?
+  currency            String?
+  note                String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+model RecurringExpense {
+  id              String    @id @default(cuid())
+  amount          Float
+  description     String
+  categoryId      String
+  frequency       String    // monthly, weekly, yearly
+  dayOfMonth      Int?
+  dayOfWeek       Int?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive        Boolean   @default(true)
+  nextExecutionAt DateTime
+  expenses        Expense[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model RecurringIncome {
+  id              String    @id @default(cuid())
+  amount          Float
+  description     String
+  categoryId      String
+  frequency       String    // monthly, weekly, yearly
+  dayOfMonth      Int?
+  dayOfWeek       Int?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive        Boolean   @default(true)
+  reminderEnabled Boolean   @default(true)
+  nextExecutionAt DateTime
+  incomes         Income[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  expenses    Expense[]
+  incomes     Income[]
+  settlements Settlement[]
+  splits      Split[]
+  budgets     Budget[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model GroupMember {
+  id          String   @id @default(cuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   @default("member") // owner, admin, member
+  permissions String   @default("view,add") // comma-separated: view,add,edit,delete
+  joinedAt    DateTime @default(now())
+  leftAt      DateTime?
+  
+  @@unique([groupId, userId])
+}
+
+model InviteToken {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  groupId     String
+  email       String
+  expiresAt   DateTime
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model OCRLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageUrl    String
+  extractedData Json?
+  status      String   // pending, success, failed
+  errorMessage String?
+  createdAt   DateTime @default(now())
+}
+
+model AdminLog {
+  id          String   @id @default(cuid())
+  adminId     String
+  action      String   // "user.block", "user.unblock", "user.delete", "user.view"
+  targetId    String?
+  details     Json?
+  createdAt   DateTime @default(now())
+}
+
+model Settlement {
+  id          String   @id @default(cuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromUserId  String   // who paid/settled (dužnik)
+  toUserId    String   // who received payment (poverilac)
+  amount      Float    // amount settled
+  status      String   @default("PENDING") // "PENDING", "CONFIRMED", "REJECTED"
+  settledAt   DateTime @default(now())
+  confirmedAt DateTime? // kada je poverilac potvrdio
+  rejectedAt  DateTime? // kada je poverilac odbio
+  note        String?  // optional note
+  createdAt   DateTime @default(now())
+  
+  @@index([groupId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+}
+
+model Split {
+  id          String   @id @default(cuid())
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  paidById    String   // ko je platio trošak
+  paidBy      User     @relation("SplitPaidBy", fields: [paidById], references: [id], onDelete: Cascade)
+  owedById    String   // ko duguje deo troška
+  owedBy      User     @relation("SplitOwedBy", fields: [owedById], references: [id], onDelete: Cascade)
+  amount      Float    // koliko duguje
+  currency    String   @default("RSD")
+  isPaid      Boolean  @default(false) // da li je dug vraćen
+  paidAt      DateTime? // kada je vraćen dug
+  createdAt   DateTime @default(now())
+  
+  @@index([groupId])
+  @@index([expenseId])
+  @@index([paidById])
+  @@index([owedById])
+  @@index([isPaid])
+}
+
+model VendorCategoryMapping {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendorName  String   // normalized vendor name (e.g., "EPS Elektroprivreda", "Maxi")
+  categoryId  String   // user's preferred category
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  usageCount  Int      @default(1) // how many times user chose this category for this vendor
+  lastUsedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  
+  @@unique([userId, vendorName]) // one mapping per user per vendor
+  @@index([userId])
+  @@index([vendorName])
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  groupId     String?  // null = personal budget, otherwise group budget
+  group       Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  categoryId  String?  // null = overall budget
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  amount      Float    // budget amount in RSD
+  period      String   // "MONTHLY", "YEARLY"
+  
+  // Alert tracking
+  alert80Sent   Boolean @default(false)  // 80% threshold alert sent
+  alert100Sent  Boolean @default(false)  // 100% threshold alert sent
+  lastResetAt   DateTime @default(now()) // when alerts were last reset
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId, groupId, categoryId, period])
+  @@index([userId])
+  @@index([groupId])
+  @@index([categoryId])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        String   // "GROUP_JOIN", "EXPENSE_ADDED", "SETTLEMENT_REQUEST", "BUDGET_ALERT", etc.
+  title       String   // "Novi clan u grupi"
+  message     String   // "Marko se pridru�io grupi 'Putovanje'"
+  
+  // Related entities
+  groupId     String?
+  expenseId   String?
+  fromUserId  String?  // who triggered the notification
+  
+  isRead      Boolean  @default(false)
+  emailSent   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([groupId])
+}
