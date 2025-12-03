@@ -173,6 +173,9 @@ export default function DashboardClient({ user }: { user: User }) {
     fetchStats()
     fetchCategories()
     fetchRecentTransactions()
+    
+    // Prefetch statistics page data in background for instant load
+    prefetchStatisticsData()
   }, [])
 
   // Show recurring modal when pending items exist
@@ -460,6 +463,21 @@ export default function DashboardClient({ user }: { user: User }) {
         monthlyExpensesByCurrency,
         monthlyIncomesByCurrency
       })
+    }
+  }
+
+  // Prefetch statistics data in background for instant page load
+  const prefetchStatisticsData = async () => {
+    try {
+      // Silently fetch all expenses and incomes in background
+      await Promise.all([
+        fetch('/api/expenses'),
+        fetch('/api/incomes')
+      ])
+      console.log('✅ Statistics data prefetched')
+    } catch (error) {
+      // Silently fail - not critical
+      console.log('Prefetch failed (not critical):', error)
     }
   }
 
