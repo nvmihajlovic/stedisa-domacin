@@ -115,13 +115,7 @@ export default function StatisticsClient({ user }: { user: User }) {
       try {
         console.log('📊 Starting statistics load...')
         await fetchStatistics()
-        console.log('✓ fetchStatistics done')
-        await fetchYoYComparison()
-        console.log('✓ fetchYoYComparison done')
-        await fetchMoMComparison()
-        console.log('✓ fetchMoMComparison done')
-        await fetchBiggestCategoryChange()
-        console.log('✓ fetchBiggestCategoryChange done')
+        console.log('✓ Statistics loaded successfully')
       } catch (error) {
         console.error('❌ Error loading statistics:', error)
       } finally {
@@ -280,8 +274,22 @@ export default function StatisticsClient({ user }: { user: User }) {
       
       setTopExpenses(top)
 
-      // Additional Statistics
-      await fetchAdditionalStatistics(expensesData, incomesData)
+      // Simple additional statistics using data we already have
+      console.log('📈 Calculating additional stats...')
+      
+      // Weekday expenses
+      const weekdayMap: any = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
+      expensesData.forEach((exp: any) => {
+        const day = new Date(exp.date).getDay()
+        weekdayMap[day] += exp.amount
+      })
+      const weekdayArray = Object.keys(weekdayMap).map(day => ({
+        day: dayNames[parseInt(day)],
+        amount: weekdayMap[day]
+      }))
+      setWeekdayExpenses(weekdayArray)
+
+      console.log('✅ All stats calculated')
 
     } catch (error) {
       console.error('Error fetching statistics:', error)
