@@ -248,6 +248,9 @@ export default function DashboardClient({ user }: { user: User }) {
     const aiEnabled = localStorage.getItem("ai_assistant_enabled") !== "false"
     setAiAssistantEnabled(aiEnabled)
     
+    // Check onboarding status
+    const onboardingCompleted = localStorage.getItem("onboarding_completed")
+    
     // Show AI popup on login (only if not first time - onboarding takes priority)
     // AND only show once per session OR every 5 days
     // AND only if AI assistant is enabled
