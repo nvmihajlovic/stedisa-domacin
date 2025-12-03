@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { convertCurrency, getExchangeRates } from "@/lib/currency";
 import { invalidateInsightsCache } from "@/app/api/financial-insights/route";
 
+// Enable caching for better performance
+export const dynamic = 'force-dynamic'
+export const revalidate = 10 // Cache for 10 seconds
+
 export async function GET(request: NextRequest) {
   const user = await getUser();
   if (!user) {
@@ -36,19 +40,34 @@ export async function GET(request: NextRequest) {
 
   const incomes = await prisma.income.findMany({
     where: whereClause,
-    include: {
-      category: true,
-      recurringIncome: true,
+    select: {
+      id: true,
+      amount: true,
+      amountInRSD: true,
+      description: true,
+      date: true,
+      currency: true,
+      note: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          icon: true,
+          color: true
+        }
+      },
+      recurringIncome: {
+        select: {
+          id: true,
+          frequency: true,
+          nextExecutionAt: true
+        }
+      }
     },
     orderBy: {
       date: "desc",
     },
-  });
-
-  console.log(`Found ${incomes.length} incomes`);
-  console.log('First income amountInRSD:', incomes[0]?.amountInRSD);
-
-  return NextResponse.json(incomes);
+  });  return NextResponse.json(incomes);
 }
 
 export async function POST(request: NextRequest) {

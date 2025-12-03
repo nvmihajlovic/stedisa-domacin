@@ -4,6 +4,10 @@ import { getUser } from "@/lib/auth"
 import { convertCurrency, getExchangeRates } from "@/lib/currency"
 import { invalidateInsightsCache } from "@/app/api/financial-insights/route"
 
+// Enable caching for better performance
+export const dynamic = 'force-dynamic'
+export const revalidate = 10 // Cache for 10 seconds
+
 export async function GET(req: Request) {
   const user = await getUser()
   if (!user) {
@@ -27,18 +31,32 @@ export async function GET(req: Request) {
       gte: startDate,
       lte: endDate,
     }
-    
-    console.log("Fetching expenses for:", { month, year, startDate, endDate });
-  } else {
-    console.log("Fetching all expenses");
   }
 
   const expenses = await prisma.expense.findMany({
     where: whereClause,
     include: {
-      category: true,
-      group: true,
-      recurringExpense: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          icon: true,
+          color: true
+        }
+      },
+      group: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      recurringExpense: {
+        select: {
+          id: true,
+          frequency: true,
+          nextExecutionAt: true
+        }
+      },
       splits: {
         include: {
           owedBy: {
