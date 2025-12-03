@@ -36,14 +36,14 @@ export async function POST(req: Request) {
 
     console.log("✓ User found:", { email: user.email, emailVerified: user.emailVerified })
 
-    // Proveri da li je email verifikovan
-    if (!user.emailVerified) {
-      console.log("❌ Email not verified")
-      return NextResponse.json(
-        { error: "Molimo verifikujte vaš email pre prijave. Proverite inbox." },
-        { status: 403 }
-      )
-    }
+    // TEMPORARY: Email verification disabled for production
+    // if (!user.emailVerified) {
+    //   console.log("❌ Email not verified")
+    //   return NextResponse.json(
+    //     { error: "Molimo verifikujte vaš email pre prijave. Proverite inbox." },
+    //     { status: 403 }
+    //   )
+    // }
 
     const isPasswordValid = await bcrypt.compare(password, user.password)
     console.log("🔑 Password valid:", isPasswordValid)
