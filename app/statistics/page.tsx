@@ -104,14 +104,23 @@ export default function StatisticsPage() {
   const dayNames = ['Ned', 'Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub']
 
   useEffect(() => {
-    fetchStatistics()
-    fetchYoYComparison()
-    fetchMoMComparison()
-    fetchBiggestCategoryChange()
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        await fetchStatistics()
+        await fetchYoYComparison()
+        await fetchMoMComparison()
+        await fetchBiggestCategoryChange()
+      } catch (error) {
+        console.error('Error loading statistics:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
   }, [currentMonth, currentYear])
 
   const fetchStatistics = async () => {
-    setLoading(true)
     try {
       // Fetch current month stats
       const expensesRes = await fetch(`/api/expenses?month=${currentMonth}&year=${currentYear}`)
@@ -234,8 +243,6 @@ export default function StatisticsPage() {
 
     } catch (error) {
       console.error('Error fetching statistics:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
