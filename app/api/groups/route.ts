@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, GroupType, DurationType } from "@prisma/client";
 import { getUser } from "@/lib/auth";
 import { z } from "zod";
 
@@ -7,8 +7,26 @@ const prisma = new PrismaClient();
 
 const createGroupSchema = z.object({
   name: z.string().min(3, "Naziv mora imati najmanje 3 karaktera").max(50, "Naziv može imati najviše 50 karaktera"),
-  description: z.string().max(200, "Opis može imati najviše 200 karaktera").optional()
-});
+  description: z.string().max(200, "Opis može imati najviše 200 karaktera").optional(),
+  type: z.enum(["PERMANENT", "TEMPORARY"]).default("PERMANENT"),
+  durationType: z.enum(["DAYS_7", "DAYS_10", "DAYS_15", "DAYS_30", "YEAR_1", "CUSTOM"]).optional(),
+  customEndDate: z.string().optional() // ISO date string
+}).refine(
+  (data) => {
+    // If TEMPORARY, durationType is required
+    if (data.type === "TEMPORARY" && !data.durationType) {
+      return false;
+    }
+    // If CUSTOM durationType, customEndDate is required
+    if (data.durationType === "CUSTOM" && !data.customEndDate) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Za privremenu grupu je potreban tip trajanja. Za custom trajanje je potreban datum."
+  }
+);
 
 // Get all groups for current user
 export async function GET(req: NextRequest) {
@@ -111,7 +129,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, description } = validation.data;
+    const { name, description, type, durationType, customEndDate } = validation.data;
 
     // Check if group with same name exists for this user
     const existingGroup = await prisma.group.findFirst({
@@ -128,6 +146,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Calculate dates for temporary groups
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+
+    if (type === "TEMPORARY") {
+      startDate = new Date();
+      
+      if (durationType === "CUSTOM" && customEndDate) {
+        endDate = new Date(customEndDate);
+        if (endDate <= startDate) {
+          return NextResponse.json(
+            { error: "Datum isteka mora biti u budućnosti" },
+            { status: 400 }
+          );
+        }
+      } else if (durationType) {
+        // Calculate endDate based on durationType
+        const durationMap: Record<string, number> = {
+          DAYS_7: 7,
+          DAYS_10: 10,
+          DAYS_15: 15,
+          DAYS_30: 30,
+          YEAR_1: 365
+        };
+        const days = durationMap[durationType];
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + days);
+      }
+    }
+
     // Create group and add owner as member in a transaction
     const group = await prisma.$transaction(async (tx) => {
       const newGroup = await tx.group.create({
@@ -135,6 +183,11 @@ export async function POST(req: NextRequest) {
           name,
           description: description || "",
           ownerId: user.userId,
+          type: type as GroupType,
+          durationType: durationType as DurationType | undefined,
+          startDate,
+          endDate,
+          isActive: true
         },
       });
 
@@ -146,6 +199,18 @@ export async function POST(req: NextRequest) {
           permissions: "view,add,edit,delete"
         }
       });
+
+      // If this is the user's first group or if it's temporary, set as active
+      const userRecord = await tx.user.findUnique({
+        where: { id: user.userId }
+      });
+
+      if (!userRecord?.activeGroupId || type === "TEMPORARY") {
+        await tx.user.update({
+          where: { id: user.userId },
+          data: { activeGroupId: newGroup.id }
+        });
+      }
 
       return newGroup;
     });

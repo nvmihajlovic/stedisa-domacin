@@ -8,9 +8,15 @@ type CreateGroupModalProps = {
   onSuccess: () => void
 }
 
+type GroupType = "PERMANENT" | "TEMPORARY"
+type DurationType = "DAYS_7" | "DAYS_10" | "DAYS_15" | "DAYS_30" | "YEAR_1" | "CUSTOM"
+
 export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModalProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [type, setType] = useState<GroupType>("PERMANENT")
+  const [durationType, setDurationType] = useState<DurationType>("DAYS_7")
+  const [customEndDate, setCustomEndDate] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -27,17 +33,32 @@ export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModa
       return
     }
 
+    if (type === "TEMPORARY" && durationType === "CUSTOM" && !customEndDate) {
+      setError("Za custom trajanje morate izabrati datum")
+      return
+    }
+
     setLoading(true)
     setError("")
 
     try {
+      const payload: any = {
+        name: name.trim(),
+        description: description.trim(),
+        type
+      }
+
+      if (type === "TEMPORARY") {
+        payload.durationType = durationType
+        if (durationType === "CUSTOM") {
+          payload.customEndDate = customEndDate
+        }
+      }
+
       const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim()
-        })
+        body: JSON.stringify(payload)
       })
 
       if (res.ok) {
@@ -115,6 +136,80 @@ export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModa
               {description.length}/200 karaktera
             </p>
           </div>
+
+          {/* Group Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-3">
+              Tip grupe *
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setType("PERMANENT")}
+                className={`px-4 py-3 rounded-xl border transition-all ${
+                  type === "PERMANENT"
+                    ? "bg-purple-600 border-purple-500 text-white"
+                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                }`}
+                disabled={loading}
+              >
+                Stalna
+              </button>
+              <button
+                type="button"
+                onClick={() => setType("TEMPORARY")}
+                className={`px-4 py-3 rounded-xl border transition-all ${
+                  type === "TEMPORARY"
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                }`}
+                disabled={loading}
+              >
+                Privremena
+              </button>
+            </div>
+          </div>
+
+          {/* Duration Type - Only for Temporary */}
+          {type === "TEMPORARY" && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Trajanje *
+                </label>
+                <select
+                  value={durationType}
+                  onChange={(e) => setDurationType(e.target.value as DurationType)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500 transition-colors"
+                  disabled={loading}
+                >
+                  <option value="DAYS_7">7 dana</option>
+                  <option value="DAYS_10">10 dana</option>
+                  <option value="DAYS_15">15 dana</option>
+                  <option value="DAYS_30">30 dana (1 mesec)</option>
+                  <option value="YEAR_1">1 godina</option>
+                  <option value="CUSTOM">Custom (izaberi datum)</option>
+                </select>
+              </div>
+
+              {/* Custom End Date - Only for CUSTOM duration */}
+              {durationType === "CUSTOM" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Datum isteka *
+                  </label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500 transition-colors"
+                    disabled={loading}
+                  />
+                </div>
+              )}
+            </>
+          )}
 
           {/* Buttons */}
           <div className="flex gap-3 pt-4">

@@ -134,31 +134,20 @@ export async function POST(req: Request) {
       }
     }
 
-    // Automatski postavi groupId ako korisnik nije eksplicitno prosledio i ako je član grupe sa više članova
-    // Tretiraj prazan string kao null
+    // Koristi User.activeGroupId umesto manuelnog pronalaženja grupe
+    // Ako nije eksplicitno prosleđen groupId, koristi activeGroupId korisnika
     let finalGroupId = groupId && groupId.trim() !== "" ? groupId : null
+    
     if (!finalGroupId) {
-      // Pronađi aktivno članstvo korisnika (leftAt je null)
-      const activeMembership = await prisma.groupMember.findFirst({
-        where: { 
-          userId: user.userId, 
-          leftAt: null 
-        },
-        include: {
-          group: {
-            include: {
-              members: true
-            }
-          }
-        }
+      // Učitaj korisnika sa activeGroupId
+      const userWithActiveGroup = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { activeGroupId: true }
       })
-
-      // Proverite da li grupa ima više od jednog aktivnog člana
-      if (activeMembership) {
-        const activeMembersCount = activeMembership.group.members.filter(m => !m.leftAt).length
-        if (activeMembersCount > 1) {
-          finalGroupId = activeMembership.groupId
-        }
+      
+      if (userWithActiveGroup?.activeGroupId) {
+        finalGroupId = userWithActiveGroup.activeGroupId
+        console.log(`📍 Using user's active group: ${finalGroupId}`)
       }
     }
 

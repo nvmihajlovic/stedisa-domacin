@@ -53,6 +53,10 @@ model User {
   userNotifications Notification[]
   splitsPaidBy      Split[]  @relation("SplitPaidBy")
   splitsOwedBy      Split[]  @relation("SplitOwedBy")
+  
+  // Active group tracking
+  activeGroupId     String?
+  activeGroup       Group?   @relation("ActiveGroup", fields: [activeGroupId], references: [id], onDelete: SetNull)
 }
 
 model Category {
@@ -176,6 +180,11 @@ model Group {
   id          String        @id @default(cuid())
   name        String
   description String?
+  type        GroupType     @default(PERMANENT) // PERMANENT or TEMPORARY
+  durationType DurationType? // Only for TEMPORARY groups
+  startDate   DateTime?     // Only for TEMPORARY groups
+  endDate     DateTime?     // Only for TEMPORARY groups
+  isActive    Boolean       @default(true)
   ownerId     String
   owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   members     GroupMember[]
@@ -184,8 +193,23 @@ model Group {
   settlements Settlement[]
   splits      Split[]
   budgets     Budget[]
+  activeUsers User[]        @relation("ActiveGroup")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+}
+
+enum GroupType {
+  PERMANENT
+  TEMPORARY
+}
+
+enum DurationType {
+  DAYS_7
+  DAYS_10
+  DAYS_15
+  DAYS_30
+  YEAR_1
+  CUSTOM
 }
 
 model GroupMember {
