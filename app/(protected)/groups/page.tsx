@@ -26,6 +26,8 @@ import { getIcon } from "@/lib/iconMapping";
 import GroupTabs from "@/components/GroupTabs";
 import GroupDashboard from "@/components/GroupDashboard";
 import MemberDashboard from "@/components/MemberDashboard";
+import CreateGroupModal from "@/components/groups/CreateGroupModal";
+import GroupSwitcher from "@/components/groups/GroupSwitcher";
 
 interface User {
   id: string;
@@ -52,6 +54,9 @@ interface Group {
   isOwner: boolean;
   canInvite: boolean;
   currentUserRole?: string;
+  type?: string;
+  endDate?: string | null;
+  isActive?: boolean;
 }
 
 interface Stats {
@@ -138,14 +143,15 @@ export default function GroupsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [groupName, setGroupName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteResult, setInviteResult] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<string>("group");
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGroupData();
+    fetchActiveGroup();
   }, []);
 
   const fetchGroupData = async () => {
@@ -184,29 +190,15 @@ export default function GroupsPage() {
     setLoading(false);
   };
 
-  const handleCreateGroup = async () => {
-    if (!groupName.trim()) return;
-
+  const fetchActiveGroup = async () => {
     try {
-      const res = await fetch("/api/group/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groupName }),
-      });
-
+      const res = await fetch('/api/user/active-group');
       if (res.ok) {
-        setShowCreateModal(false);
-        setGroupName("");
-        addToast("Grupa uspešno kreirana!", "success");
-        fetchGroupData();
-      } else {
-        const text = await res.text();
-        const data = text ? JSON.parse(text) : { error: 'Greška pri kreiranju grupe' };
-        addToast(data.error || "Greška pri kreiranju grupe", "error");
+        const data = await res.json();
+        setActiveGroupId(data.activeGroup?.id || null);
       }
     } catch (error) {
-      console.error("Error creating group:", error);
-      addToast("Greška pri kreiranju grupe", "error");
+      console.error('Error fetching active group:', error);
     }
   };
 
@@ -328,71 +320,6 @@ export default function GroupsPage() {
             </div>
           </motion.div>
         </div>
-
-        {/* Create Group Modal */}
-        <AnimatePresence>
-          {showCreateModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowCreateModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-[#1a1b23] rounded-2xl p-8 max-w-md w-full border border-white/10"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white">
-                    Kreiraj grupu
-                  </h2>
-                  <button
-                    onClick={() => setShowCreateModal(false)}
-                    className="p-2 hover:bg-white/5 rounded-lg transition-colors"
-                  >
-                    <X size={24} className="text-gray-400" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Naziv grupe
-                    </label>
-                    <input
-                      type="text"
-                      value={groupName}
-                      onChange={(e) => setGroupName(e.target.value)}
-                      placeholder="npr. Moja porodica"
-                      className="w-full px-4 py-3 bg-[#0f1015] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      onClick={() => setShowCreateModal(false)}
-                      className="flex-1 px-4 py-3 bg-white/5 text-gray-300 rounded-xl font-semibold hover:bg-white/10 transition-colors"
-                    >
-                      Otkaži
-                    </button>
-                    <button
-                      onClick={handleCreateGroup}
-                      disabled={!groupName.trim()}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Kreiraj
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     );
   }
@@ -446,10 +373,62 @@ export default function GroupsPage() {
                 {activeMembers.length}{" "}
                 {activeMembers.length === 1 ? "aktivni član" : "aktivnih članova"}
               </p>
+              
+              {/* Group Type and Expiry Info */}
+              {group.type && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold"
+                    style={{
+                      background: group.type === "PERMANENT" 
+                        ? "rgba(16, 185, 129, 0.1)" 
+                        : "rgba(59, 130, 246, 0.1)",
+                      color: group.type === "PERMANENT" ? "#10b981" : "#3b82f6",
+                      border: group.type === "PERMANENT" 
+                        ? "1px solid rgba(16, 185, 129, 0.3)" 
+                        : "1px solid rgba(59, 130, 246, 0.3)",
+                    }}
+                  >
+                    {group.type === "PERMANENT" ? "Stalna grupa" : "Privremena grupa"}
+                  </div>
+                  
+                  {group.type === "TEMPORARY" && group.endDate && (
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
+                      Ističe: {new Date(group.endDate).toLocaleDateString("sr-RS", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric"
+                      })}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            <GroupSwitcher 
+              currentGroupId={activeGroupId} 
+              onGroupChange={() => {
+                fetchGroupData();
+                fetchActiveGroup();
+              }}
+            />
+            
+            <button
+              onClick={() => {
+                console.log("Kreiraj grupu clicked, showCreateModal:", showCreateModal);
+                setShowCreateModal(true);
+              }}
+              className="px-6 py-3 rounded-xl font-semibold hover:opacity-80 transition-all duration-300 flex items-center gap-2"
+              style={{
+                background: "linear-gradient(135deg, #4DB2FF 0%, #A64DFF 100%)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <Plus size={20} weight="bold" />
+              Kreiraj novu grupu
+            </button>
             {group.canInvite && (
               <button
                 onClick={() => setShowInviteModal(true)}
@@ -852,6 +831,21 @@ export default function GroupsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Create Group Modal */}
+      {showCreateModal && (
+        <>
+          {console.log("Rendering CreateGroupModal")}
+          <CreateGroupModal
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={() => {
+              setShowCreateModal(false);
+              addToast("Grupa uspešno kreirana!", "success");
+              fetchGroupData();
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

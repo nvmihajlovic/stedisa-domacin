@@ -9,49 +9,124 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Pronađi grupu korisnika
-    const allMemberships = await prisma.groupMember.findMany({
-      where: {
-        userId: user.userId,
-      },
-      include: {
-        group: {
-          include: {
-            owner: true,
-            members: {
-              include: {
-                user: true,
-              },
+    // Pronađi korisnika sa aktivnom grupom
+    const userWithActiveGroup = await prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { activeGroupId: true }
+    });
+
+    console.log(`🔍 User ${user.userId} has activeGroupId: ${userWithActiveGroup?.activeGroupId}`);
+
+    let group;
+
+    if (userWithActiveGroup?.activeGroupId) {
+      // Ako postoji activeGroupId, učitaj tu grupu
+      group = await prisma.group.findUnique({
+        where: { id: userWithActiveGroup.activeGroupId },
+        include: {
+          owner: true,
+          members: {
+            include: {
+              user: true,
             },
           },
         },
-      },
-    });
-
-    console.log(`📊 Group Stats - Found ${allMemberships.length} memberships for user ${user.userId}`);
-    allMemberships.forEach((m: any, i: number) => {
-      console.log(`  Membership ${i + 1}:`, {
-        groupId: m.groupId,
-        groupName: m.group?.name,
-        role: m.role,
-        leftAt: m.leftAt,
-        isActive: !m.leftAt
       });
-    });
 
-    const membership = allMemberships.find((m: any) => !m.leftAt);
+      console.log(`📦 Found group by activeGroupId: ${group?.name || 'null'}`);
 
-    if (!membership) {
-      console.log(`❌ No active membership found for user ${user.userId}`);
+      // Proveri da li je korisnik još uvek član te grupe
+      if (group) {
+        const membership = group.members.find(m => m.userId === user.userId && !m.leftAt);
+        const isOwner = group.ownerId === user.userId;
+        
+        console.log(`👤 User is owner: ${isOwner}, is member: ${!!membership}`);
+        
+        if (!membership && !isOwner) {
+          // Korisnik više nije član te grupe, pronađi drugu
+          console.log(`⚠️ User not valid member/owner of activeGroup, searching for another`);
+          group = null;
+        }
+      }
+    }
+
+    // Ako nema activeGroupId ili grupa nije validna, pronađi bilo koju aktivnu grupu
+    if (!group) {
+      console.log(`🔎 Searching for any group where user is owner or member`);
+      
+      // Prvo proveri da li je vlasnik neke grupe
+      const ownedGroup = await prisma.group.findFirst({
+        where: { 
+          ownerId: user.userId,
+          isActive: true 
+        },
+        include: {
+          owner: true,
+          members: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      console.log(`🏠 Found owned group: ${ownedGroup?.name || 'null'}`);
+
+      if (ownedGroup) {
+        group = ownedGroup;
+      } else {
+        // Ako nije vlasnik, traži članstva
+        const allMemberships = await prisma.groupMember.findMany({
+          where: {
+            userId: user.userId,
+          },
+          include: {
+            group: {
+              include: {
+                owner: true,
+                members: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        console.log(`📊 Group Stats - Found ${allMemberships.length} memberships for user ${user.userId}`);
+        allMemberships.forEach((m: any, i: number) => {
+          console.log(`  Membership ${i + 1}:`, {
+            groupId: m.groupId,
+            groupName: m.group?.name,
+            role: m.role,
+            leftAt: m.leftAt,
+            isActive: !m.leftAt
+          });
+        });
+
+        const membership = allMemberships.find((m: any) => !m.leftAt);
+
+        if (!membership) {
+          console.log(`❌ No active membership found for user ${user.userId}`);
+          return NextResponse.json(
+            { error: "Niste član nijedne grupe" },
+            { status: 404 }
+          );
+        }
+
+        group = membership.group;
+      }
+    }
+
+    if (!group) {
       return NextResponse.json(
         { error: "Niste član nijedne grupe" },
         { status: 404 }
       );
     }
 
-    console.log(`✓ Active membership found in group: ${membership.group.name}`);
-
-    const group = membership.group;
+    console.log(`✓ Active group: ${group.name}`);
     // Filtriraj samo aktivne članove
     const activeMembers = group.members.filter((m: any) => !m.leftAt);
     const memberUserIds = activeMembers.map((m: any) => m.userId);
@@ -293,13 +368,18 @@ export async function GET(req: NextRequest) {
       })),
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-    const canInvite = membership.role === "owner" || membership.permissions.includes("invite");
-    const isOwner = membership.role === "owner";
+    // Proveri da li je korisnik vlasnik ili član i dobavi permisije
+    const isGroupOwner = group.ownerId === user.userId;
+    const membership = group.members.find((m: any) => m.userId === user.userId && !m.leftAt);
+    
+    const canInvite = isGroupOwner || (membership && (membership.role === "owner" || membership.permissions.includes("invite")));
+    const userRole = isGroupOwner ? "owner" : (membership?.role || "member");
+    const userPermissions = isGroupOwner ? "view,add,edit,delete,invite" : (membership?.permissions || "view");
     
     console.log("📊 Group Stats - User permissions:", {
-      role: membership.role,
-      permissions: membership.permissions,
-      isOwner,
+      isGroupOwner,
+      role: userRole,
+      permissions: userPermissions,
       canInvite
     });
 
@@ -573,9 +653,12 @@ export async function GET(req: NextRequest) {
         description: group.description,
         owner: group.owner,
         members: group.members,
-        isOwner,
+        isOwner: isGroupOwner,
         canInvite,
-        currentUserRole: membership.role,
+        currentUserRole: userRole,
+        type: group.type,
+        endDate: group.endDate,
+        isActive: group.isActive,
       },
       stats: {
         totalExpenses,

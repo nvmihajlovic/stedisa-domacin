@@ -29,6 +29,7 @@ import OnboardingModal from "@/components/OnboardingModal"
 import HelpButton from "@/components/HelpButton"
 import NotificationBell from "@/components/NotificationBell"
 import AIInsightsPopup from "@/components/AIInsights"
+import GroupSwitcher from "@/components/groups/GroupSwitcher"
 import { useRecurringCheck } from "@/lib/hooks/useRecurringCheck"
 import { getIcon } from "@/lib/iconMapping"
 import { useToast } from "@/hooks/useToast"
@@ -82,6 +83,9 @@ export default function DashboardClient({ user }: { user: User }) {
   const [aiInsightsCount, setAiInsightsCount] = useState(0)
   const [hasNewInsights, setHasNewInsights] = useState(false)
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState(true)
+  
+  // Active group state
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   
   // Product tour
   const { startTour } = useTour()
@@ -173,6 +177,7 @@ export default function DashboardClient({ user }: { user: User }) {
     fetchStats()
     fetchCategories()
     fetchRecentTransactions()
+    fetchActiveGroup()
     
     // Prefetch statistics page data in background for instant load
     prefetchStatisticsData()
@@ -299,6 +304,18 @@ export default function DashboardClient({ user }: { user: User }) {
       window.removeEventListener('settlementUpdated', handleSettlementUpdate)
     }
   }, [])
+
+  const fetchActiveGroup = async () => {
+    try {
+      const res = await fetch('/api/user/active-group')
+      if (res.ok) {
+        const data = await res.json()
+        setActiveGroupId(data.activeGroup?.id || null)
+      }
+    } catch (error) {
+      console.error('Error fetching active group:', error)
+    }
+  }
 
   const fetchCategories = async () => {
     const [catRes, incCatRes] = await Promise.all([

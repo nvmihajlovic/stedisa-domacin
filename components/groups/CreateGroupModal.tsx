@@ -55,6 +55,8 @@ export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModa
         }
       }
 
+      console.log("Creating group with payload:", payload)
+
       const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,9 +67,11 @@ export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModa
         onSuccess()
       } else {
         const data = await res.json()
+        console.error("Create group error:", data)
         setError(data.error || "Greška pri kreiranju grupe")
       }
     } catch (err) {
+      console.error("Create group exception:", err)
       setError("Greška pri kreiranju grupe")
     } finally {
       setLoading(false)
@@ -180,15 +184,19 @@ export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModa
                 <select
                   value={durationType}
                   onChange={(e) => setDurationType(e.target.value as DurationType)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full px-4 py-3 rounded-xl text-white focus:outline-none transition-all"
+                  style={{
+                    background: "#1a1b23",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
                   disabled={loading}
                 >
-                  <option value="DAYS_7">7 dana</option>
-                  <option value="DAYS_10">10 dana</option>
-                  <option value="DAYS_15">15 dana</option>
-                  <option value="DAYS_30">30 dana (1 mesec)</option>
-                  <option value="YEAR_1">1 godina</option>
-                  <option value="CUSTOM">Custom (izaberi datum)</option>
+                  <option value="DAYS_7" style={{ background: "#1a1b23" }}>7 dana</option>
+                  <option value="DAYS_10" style={{ background: "#1a1b23" }}>10 dana</option>
+                  <option value="DAYS_15" style={{ background: "#1a1b23" }}>15 dana</option>
+                  <option value="DAYS_30" style={{ background: "#1a1b23" }}>30 dana (1 mesec)</option>
+                  <option value="YEAR_1" style={{ background: "#1a1b23" }}>1 godina</option>
+                  <option value="CUSTOM" style={{ background: "#1a1b23" }}>Custom (izaberi datum)</option>
                 </select>
               </div>
 
@@ -203,7 +211,11 @@ export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModa
                     value={customEndDate}
                     onChange={(e) => setCustomEndDate(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full px-4 py-3 rounded-xl text-white focus:outline-none transition-all"
+                    style={{
+                      background: "#1a1b23",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
                     disabled={loading}
                   />
                 </div>
@@ -223,7 +235,11 @@ export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModa
             </button>
             <button
               type="submit"
-              disabled={loading || !name.trim()}
+              disabled={
+                loading || 
+                !name.trim() || 
+                (type === "TEMPORARY" && durationType === "CUSTOM" && !customEndDate)
+              }
               className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Kreiranje..." : "Kreiraj"}

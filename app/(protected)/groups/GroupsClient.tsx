@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Plus, Users, TrendUp, TrendDown, ArrowRight } from "phosphor-react"
 import { useRouter } from "next/navigation"
 import CreateGroupModal from "@/components/groups/CreateGroupModal"
+import GroupSwitcher from "@/components/groups/GroupSwitcher"
 
 type Group = {
   id: string
@@ -30,9 +31,11 @@ export default function GroupsClient() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchData()
+    fetchActiveGroup()
   }, [])
 
   const fetchData = async () => {
@@ -59,8 +62,21 @@ export default function GroupsClient() {
     }
   }
 
+  const fetchActiveGroup = async () => {
+    try {
+      const res = await fetch('/api/user/active-group')
+      if (res.ok) {
+        const data = await res.json()
+        setActiveGroupId(data.activeGroup?.id || null)
+      }
+    } catch (error) {
+      console.error('Error fetching active group:', error)
+    }
+  }
+
   const handleGroupCreated = () => {
     fetchData()
+    fetchActiveGroup()
     setShowCreateModal(false)
   }
 
@@ -86,13 +102,25 @@ export default function GroupsClient() {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300"
-          >
-            <Plus size={24} weight="bold" />
-            Kreiraj grupu
-          </button>
+          <div className="flex items-center gap-4">
+            {groups.length > 0 && (
+              <GroupSwitcher 
+                currentGroupId={activeGroupId} 
+                onGroupChange={() => {
+                  fetchData()
+                  fetchActiveGroup()
+                }}
+              />
+            )}
+            
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300"
+            >
+              <Plus size={24} weight="bold" />
+              Kreiraj grupu
+            </button>
+          </div>
         </div>
 
         {/* Loading State */}

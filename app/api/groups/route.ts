@@ -100,7 +100,12 @@ export async function GET(req: NextRequest) {
       ...memberGroups.map((m) => m.group),
     ];
 
-    return NextResponse.json(allGroups);
+    // Remove duplicates based on group ID
+    const uniqueGroups = allGroups.filter((group, index, self) =>
+      index === self.findIndex((g) => g.id === group.id)
+    );
+
+    return NextResponse.json(uniqueGroups);
   } catch (error) {
     console.error("Error fetching groups:", error);
     return NextResponse.json(
