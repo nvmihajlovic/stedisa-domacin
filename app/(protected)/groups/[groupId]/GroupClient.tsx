@@ -202,7 +202,7 @@ export default function GroupClient({ groupId }: { groupId: string }) {
                 {group.name}
               </h1>
               {group.userRole.isOwner && (
-                <span className="px-3 py-1 rounded-full text-sm font-semibold" style={{background: "rgba(255, 193, 7, 0.15)", color: "#FFC107", border: "1px solid rgba(255, 193, 7, 0.2)"}}>
+                <span className="px-3 py-1 rounded-full text-sm font-semibold" style={{background: "rgba(230, 193, 74, 0.15)", color: "#E6C14A", border: "1px solid rgba(230, 193, 74, 0.2)"}}>
                   Vlasnik
                 </span>
               )}
@@ -239,13 +239,13 @@ export default function GroupClient({ groupId }: { groupId: string }) {
             <div className="rounded-3xl cursor-pointer hover:scale-[1.02] transition-all duration-300 relative p-6 shadow-[0_0_35px_-10px_rgba(0,0,0,0.45)] hover:shadow-[0_0_40px_-8px_rgba(228,88,110,0.3)]" style={{background: "linear-gradient(145deg, #1E1B2A, #171421)", border: "1px solid rgba(255,255,255,0.06)", height: "120px"}}>
               <div className="flex items-start justify-between mb-4">
                 <div className="text-sm font-semibold" style={{color: "rgba(255,255,255,0.55)", fontFamily: "\"Inter\", sans-serif"}}>Ukupni troškovi</div>
-                <TrendDown size={20} weight="duotone" style={{color: "#FFB3E6"}} />
+                <TrendDown size={20} weight="duotone" style={{color: "#C339B5"}} />
               </div>
               <div className="text-2xl font-bold" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>
                 <CountUp end={group.totals.expenses} duration={0.8} decimals={0} separator="." preserveValue onStart={playCoinSound} />
                 <span style={{fontSize: "0.65em", opacity: 0.6, fontWeight: 500, marginLeft: "4px"}}>RSD</span>
               </div>
-              <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: "rgba(255, 179, 230, 0.15)", color: "#FFB3E6", border: "1px solid rgba(255, 179, 230, 0.2)"}}>
+              <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: "rgba(195, 57, 181, 0.15)", color: "#C339B5", border: "1px solid rgba(195, 57, 181, 0.2)"}}>
                 {group.counts.expenses} transakcija
               </div>
             </div>
@@ -253,13 +253,13 @@ export default function GroupClient({ groupId }: { groupId: string }) {
             <div className="rounded-3xl cursor-pointer hover:scale-[1.02] transition-all duration-300 relative p-6 shadow-[0_0_35px_-10px_rgba(0,0,0,0.45)] hover:shadow-[0_0_40px_-8px_rgba(27,217,106,0.3)]" style={{background: "linear-gradient(145deg, #1E1B2A, #171421)", border: "1px solid rgba(255,255,255,0.06)", height: "120px"}}>
               <div className="flex items-start justify-between mb-4">
                 <div className="text-sm font-semibold" style={{color: "rgba(255,255,255,0.55)", fontFamily: "\"Inter\", sans-serif"}}>Ukupni prihodi</div>
-                <TrendUp size={20} weight="duotone" style={{color: "#6FFFC4"}} />
+                <TrendUp size={20} weight="duotone" style={{color: "#1FBFA4"}} />
               </div>
               <div className="text-2xl font-bold" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>
                 <CountUp end={group.totals.income} duration={0.8} decimals={0} separator="." preserveValue onStart={playCoinSound} />
                 <span style={{fontSize: "0.65em", opacity: 0.6, fontWeight: 500, marginLeft: "4px"}}>RSD</span>
               </div>
-              <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: "rgba(111, 255, 196, 0.15)", color: "#6FFFC4", border: "1px solid rgba(111, 255, 196, 0.2)"}}>
+              <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: "rgba(31, 191, 164, 0.15)", color: "#1FBFA4", border: "1px solid rgba(31, 191, 164, 0.2)"}}>
                 {group.counts.incomes} transakcija
               </div>
             </div>
@@ -267,13 +267,13 @@ export default function GroupClient({ groupId }: { groupId: string }) {
             <div className="rounded-3xl relative p-6 shadow-[0_0_35px_-10px_rgba(0,0,0,0.45)]" style={{background: "linear-gradient(145deg, #1E1B2A, #171421)", border: "1px solid rgba(255,255,255,0.06)", height: "120px"}}>
               <div className="flex items-start justify-between mb-4">
                 <div className="text-sm font-semibold" style={{color: "rgba(255,255,255,0.55)", fontFamily: "\"Inter\", sans-serif"}}>Bilans</div>
-                <Wallet size={20} weight="duotone" style={{color: group.totals.balance >= 0 ? "#7FDFFF" : "#FFB3E6"}} />
+                <Wallet size={20} weight="duotone" style={{color: group.totals.balance >= 0 ? "#4EC8E4" : "#C339B5"}} />
               </div>
               <div className="text-2xl font-bold" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>
                 <CountUp end={group.totals.balance} duration={0.8} decimals={0} separator="." preserveValue onStart={playCoinSound} />
                 <span style={{fontSize: "0.65em", opacity: 0.6, fontWeight: 500, marginLeft: "4px"}}>RSD</span>
               </div>
-              <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: group.totals.balance >= 0 ? "rgba(127, 223, 255, 0.15)" : "rgba(255, 179, 230, 0.15)", color: group.totals.balance >= 0 ? "#7FDFFF" : "#FFB3E6", border: group.totals.balance >= 0 ? "1px solid rgba(127, 223, 255, 0.2)" : "1px solid rgba(255, 179, 230, 0.2)"}}>
+              <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: group.totals.balance >= 0 ? "rgba(78, 200, 228, 0.15)" : "rgba(195, 57, 181, 0.15)", color: group.totals.balance >= 0 ? "#4EC8E4" : "#C339B5", border: group.totals.balance >= 0 ? "1px solid rgba(78, 200, 228, 0.2)" : "1px solid rgba(195, 57, 181, 0.2)"}}>
                 {group.counts.members} članova
               </div>
             </div>
@@ -301,7 +301,7 @@ export default function GroupClient({ groupId }: { groupId: string }) {
                         <div className="flex items-center gap-2">
                           <div className="text-sm font-semibold truncate" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>{member.user.name}</div>
                           {member.role === "owner" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: "rgba(255, 193, 7, 0.15)", color: "#FFC107", border: "1px solid rgba(255, 193, 7, 0.2)"}}>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: "rgba(230, 193, 74, 0.15)", color: "#E6C14A", border: "1px solid rgba(230, 193, 74, 0.2)"}}>
                               Vlasnik
                             </span>
                           )}
@@ -324,35 +324,35 @@ export default function GroupClient({ groupId }: { groupId: string }) {
               <div className="rounded-3xl backdrop-blur-xl p-6 pb-6" style={{background: "rgba(20, 18, 38, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)"}}>
                 <div className="flex items-start gap-4 mb-6">
                   <div className="flex-1">
-                    <TrendDown size={36} weight="duotone" className="mb-4" style={{color: "#FFB3E6"}} />
+                    <TrendDown size={36} weight="duotone" className="mb-4" style={{color: "#C339B5"}} />
                     <h3 className="text-xl font-semibold mb-2" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>Rashodi grupe</h3>
-                    <p className="text-sm" style={{color: "#FFB3E6", opacity: 0.7}}>Zajednički troškovi</p>
+                    <p className="text-sm" style={{color: "#C339B5", opacity: 0.7}}>Zajednički troškovi</p>
                   </div>
                 </div>
                 {group.expenses.length === 0 ? (
                   <p className="text-center py-8" style={{color: "#E8D9FF", opacity: 0.6}}>Nema rashoda za ovu grupu</p>
                 ) : (
                 <div className="flex flex-col gap-3 lg:gap-4 pb-5 mt-6">
-                  <div className="text-[10px] font-bold tracking-wide" style={{color: "#FFB3E6", opacity: 0.7, fontFamily: "\"Inter\", sans-serif"}}>RASHODI</div>
+                  <div className="text-[10px] font-bold tracking-wide" style={{color: "#C339B5", opacity: 0.7, fontFamily: "\"Inter\", sans-serif"}}>RASHODI</div>
                   {group.expenses.slice(0, 5).map((expense) => {
                     const IconComponent = getIcon(expense.category?.icon);
                     return (
                       <div key={expense.id} className="rounded-xl p-4 flex items-center justify-between bg-white/5 transition-all duration-[120ms] ease-out hover:brightness-[1.02] hover:scale-[1.01]" style={{border: "1px solid rgba(255, 255, 255, 0.04)"}}>
                         <div className="flex items-center gap-3 flex-1">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: "rgba(255, 179, 230, 0.15)", border: "1px solid rgba(255, 179, 230, 0.2)", boxShadow: "0 0 15px rgba(255, 179, 230, 0.2)"}}>
-                            {IconComponent ? <IconComponent size={18} weight="duotone" style={{color: "#FFB3E6"}} /> : <TrendDown size={18} weight="duotone" style={{color: "#FFB3E6"}} />}
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: "rgba(195, 57, 181, 0.15)", border: "1px solid rgba(195, 57, 181, 0.2)", boxShadow: "0 0 15px rgba(195, 57, 181, 0.2)"}}>
+                            {IconComponent ? <IconComponent size={18} weight="duotone" style={{color: "#C339B5"}} /> : <TrendDown size={18} weight="duotone" style={{color: "#C339B5"}} />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-semibold truncate" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>{expense.description}</div>
-                            <div className="text-xs truncate" style={{color: "#FFB3E6", opacity: 0.6}}>{expense.category?.name} • {expense.user.name}</div>
+                            <div className="text-xs truncate" style={{color: "#C339B5", opacity: 0.6}}>{expense.category?.name} • {expense.user.name}</div>
                           </div>
                         </div>
-                        <div className="text-base font-bold ml-3 flex-shrink-0" style={{color: "#FFB3E6"}}>-{expense.amount.toLocaleString()} RSD</div>
+                        <div className="text-base font-bold ml-3 flex-shrink-0" style={{color: "#C339B5"}}>-{expense.amount.toLocaleString()} RSD</div>
                       </div>
                     );
                   })}
                   {group.expenses.length > 5 && (
-                    <p className="text-center text-xs mt-2" style={{color: "#FFB3E6", opacity: 0.6}}>+{group.expenses.length - 5} više rashoda</p>
+                    <p className="text-center text-xs mt-2" style={{color: "#C339B5", opacity: 0.6}}>+{group.expenses.length - 5} više rashoda</p>
                   )}
                 </div>
               )}
@@ -362,36 +362,36 @@ export default function GroupClient({ groupId }: { groupId: string }) {
           <div className="p-1 rounded-3xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden shadow-[0_0_35px_-10px_rgba(0,0,0,0.45)] hover:shadow-[0_0_45px_-5px_rgba(27,217,106,0.35)]" style={{background: "linear-gradient(135deg, rgba(27,217,106,0.3) 0%, rgba(111,255,196,0.3) 100%)"}}>
             <div className="rounded-3xl backdrop-blur-xl p-6 pb-6" style={{background: "rgba(20, 18, 38, 0.85)", border: "1px solid rgba(255, 255, 255, 0.08)"}}>
               <div className="flex items-start gap-4 mb-6">
-                <div className="flex-1">
-                  <TrendUp size={36} weight="duotone" className="mb-4" style={{color: "#6FFFC4"}} />
+                  <div className="flex-1">
+                  <TrendUp size={36} weight="duotone" className="mb-4" style={{color: "#1FBFA4"}} />
                   <h3 className="text-xl font-semibold mb-2" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>Prihodi grupe</h3>
-                  <p className="text-sm" style={{color: "#6FFFC4", opacity: 0.7}}>Svi prihodi članova</p>
+                  <p className="text-sm" style={{color: "#1FBFA4", opacity: 0.7}}>Svi prihodi članova</p>
                 </div>
               </div>
               {group.incomes.length === 0 ? (
                 <p className="text-center py-8" style={{color: "#E8D9FF", opacity: 0.6}}>Nema prihoda za ovu grupu</p>
               ) : (
                 <div className="flex flex-col gap-3 lg:gap-4 pb-5 mt-6">
-                  <div className="text-[10px] font-bold tracking-wide" style={{color: "#6FFFC4", opacity: 0.7, fontFamily: "\"Inter\", sans-serif"}}>PRIHODI</div>
+                  <div className="text-[10px] font-bold tracking-wide" style={{color: "#1FBFA4", opacity: 0.7, fontFamily: "\"Inter\", sans-serif"}}>PRIHODI</div>
                   {group.incomes.slice(0, 5).map((income) => {
                     const IconComponent = getIcon(income.category?.icon);
                     return (
                       <div key={income.id} className="rounded-xl p-4 flex items-center justify-between bg-white/5 transition-all duration-[120ms] ease-out hover:brightness-[1.02] hover:scale-[1.01]" style={{border: "1px solid rgba(255, 255, 255, 0.04)"}}>
                         <div className="flex items-center gap-3 flex-1">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: "rgba(111, 255, 196, 0.15)", border: "1px solid rgba(111, 255, 196, 0.2)", boxShadow: "0 0 15px rgba(111, 255, 196, 0.2)"}}>
-                            {IconComponent ? <IconComponent size={18} weight="duotone" style={{color: "#6FFFC4"}} /> : <TrendUp size={18} weight="duotone" style={{color: "#6FFFC4"}} />}
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: "rgba(31, 191, 164, 0.15)", border: "1px solid rgba(31, 191, 164, 0.2)", boxShadow: "0 0 15px rgba(31, 191, 164, 0.2)"}}>
+                            {IconComponent ? <IconComponent size={18} weight="duotone" style={{color: "#1FBFA4"}} /> : <TrendUp size={18} weight="duotone" style={{color: "#1FBFA4"}} />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-semibold truncate" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>{income.description}</div>
-                            <div className="text-xs truncate" style={{color: "#6FFFC4", opacity: 0.6}}>{income.category?.name} • {income.user.name}</div>
+                            <div className="text-xs truncate" style={{color: "#1FBFA4", opacity: 0.6}}>{income.category?.name} • {income.user.name}</div>
                           </div>
                         </div>
-                        <div className="text-base font-bold ml-3 flex-shrink-0" style={{color: "#6FFFC4"}}>+{income.amount.toLocaleString()} RSD</div>
+                        <div className="text-base font-bold ml-3 flex-shrink-0" style={{color: "#1FBFA4"}}>+{income.amount.toLocaleString()} RSD</div>
                       </div>
                     );
                   })}
                   {group.incomes.length > 5 && (
-                    <p className="text-center text-xs mt-2" style={{color: "#6FFFC4", opacity: 0.6}}>+{group.incomes.length - 5} više prihoda</p>
+                    <p className="text-center text-xs mt-2" style={{color: "#1FBFA4", opacity: 0.6}}>+{group.incomes.length - 5} više prihoda</p>
                   )}
                 </div>
               )}

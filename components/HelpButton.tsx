@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Question, X, Lightbulb, CheckCircle, MagnifyingGlass, BookOpen, VideoCamera, CaretRight, Image as ImageIcon } from "@phosphor-icons/react";
+import { 
+  Question, X, Lightbulb, CheckCircle, MagnifyingGlass, BookOpen, 
+  VideoCamera, CaretRight, Image as ImageIcon, Sparkle, Rocket,
+  ChartLine, Users, Tag, Gear, Receipt, TrendUp, Lightning,
+  Info, Warning, Play, CheckSquare
+} from "@phosphor-icons/react";
 import Image from "next/image";
 
 interface HelpItem {
@@ -10,12 +15,14 @@ interface HelpItem {
   category: string;
   question: string;
   answer: string;
+  icon: any;
+  color: string;
   steps?: string[];
   tips?: string[];
   warnings?: string[];
   videoUrl?: string;
   relatedTopics?: string[];
-  screenshots?: string[]; // Array of image paths
+  screenshots?: string[];
 }
 
 interface HelpButtonProps {

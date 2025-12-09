@@ -123,7 +123,7 @@ export default function MemberDashboard({ groupId, memberId, memberName }: Membe
             >
               Troškovi
             </div>
-            <TrendDown size={20} weight="duotone" style={{ color: "#FFB3E6" }} />
+            <TrendDown size={20} weight="duotone" style={{ color: "#C339B5" }} />
           </div>
           <div className="text-2xl font-bold" style={{ color: "#FFFFFF", fontFamily: '"Inter", sans-serif' }}>
             <CountUp end={stats.totalExpenses} duration={0.8} decimals={0} separator="." preserveValue />
@@ -147,7 +147,7 @@ export default function MemberDashboard({ groupId, memberId, memberName }: Membe
             >
               Prihodi
             </div>
-            <TrendUp size={20} weight="duotone" style={{ color: "#6FFFC4" }} />
+            <TrendUp size={20} weight="duotone" style={{ color: "#1FBFA4" }} />
           </div>
           <div className="text-2xl font-bold" style={{ color: "#FFFFFF", fontFamily: '"Inter", sans-serif' }}>
             <CountUp end={stats.totalIncomes} duration={0.8} decimals={0} separator="." preserveValue />
@@ -171,7 +171,7 @@ export default function MemberDashboard({ groupId, memberId, memberName }: Membe
             >
               Bilans
             </div>
-            <Wallet size={20} weight="duotone" style={{ color: stats.balance >= 0 ? "#7FDFFF" : "#FFB3E6" }} />
+            <Wallet size={20} weight="duotone" style={{ color: stats.balance >= 0 ? "#4EC8E4" : "#C339B5" }} />
           </div>
           <div className="text-2xl font-bold" style={{ color: "#FFFFFF", fontFamily: '"Inter", sans-serif' }}>
             <CountUp end={stats.balance} duration={0.8} decimals={0} separator="." preserveValue />
@@ -240,7 +240,7 @@ export default function MemberDashboard({ groupId, memberId, memberName }: Membe
                           </p>
                         </div>
                       </div>
-                      <p className="font-bold text-lg" style={{ color: "#FFB3E6", fontFamily: '"Inter", sans-serif' }}>
+                      <p className="font-bold text-lg" style={{ color: "#C339B5", fontFamily: '"Inter", sans-serif' }}>
                         {category.total.toLocaleString("sr-RS")} RSD
                       </p>
                     </div>
@@ -309,7 +309,7 @@ export default function MemberDashboard({ groupId, memberId, memberName }: Membe
                     <div
                       className="text-sm font-bold"
                       style={{
-                        color: transaction.type === "expense" ? "#FFB3E6" : "#6FFFC4",
+                        color: transaction.type === "expense" ? "#C339B5" : "#1FBFA4",
                         fontFamily: '"Inter", sans-serif',
                       }}
                     >
@@ -399,7 +399,7 @@ export default function MemberDashboard({ groupId, memberId, memberName }: Membe
                         </p>
                       </div>
                     </div>
-                    <p className="font-bold" style={{ color: "#6FFFC4", fontFamily: '"Inter", sans-serif' }}>
+                    <p className="font-bold" style={{ color: "#1FBFA4", fontFamily: '"Inter", sans-serif' }}>
                       {category.total.toLocaleString("sr-RS")}
                     </p>
                   </div>

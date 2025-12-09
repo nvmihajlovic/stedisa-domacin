@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Trash, CalendarBlank, CreditCard, X, TrendUp, CurrencyCircleDollar, PencilSimple, CaretLeft, CaretRight, Repeat, Funnel, DownloadSimple, FilePdf, FileText } from "phosphor-react";
 import CategorySelector from "@/lib/components/CategorySelector";
 import ReceiptUploader from "@/lib/components/ReceiptUploader";
-import HelpButton from "@/components/HelpButton";
+import ModernHelpButton from "@/components/ModernHelpButton";
 import { getIcon } from "@/lib/iconMapping";
 import { generatePDFReport, downloadPDF } from "@/lib/pdf-generator";
 import { showToast } from "@/lib/toast";
@@ -506,7 +506,10 @@ export default function IncomesPage() {
               </button>
             </div>
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-3">
+            {/* Help Button */}
+            <ModernHelpButton page="incomes" />
+            
             <button
               onClick={() => router.push("/dashboard")}
               className="px-6 py-3 rounded-2xl font-semibold backdrop-blur-xl border border-white/10 hover:bg-white/10 transition-all duration-300 flex items-center gap-2"
@@ -1170,9 +1173,6 @@ export default function IncomesPage() {
           </div>
         </div>
       )}
-
-      {/* Help Button */}
-      <HelpButton page="incomes" />
 
       {/* Filters Drawer */}
       <IncomeFilters

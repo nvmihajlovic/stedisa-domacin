@@ -26,7 +26,7 @@ import CategorySelector from "@/lib/components/CategorySelector"
 import ReceiptUploader from "@/lib/components/ReceiptUploader"
 import RecurringModal from "@/lib/components/RecurringModal"
 import OnboardingModal from "@/components/OnboardingModal"
-import HelpButton from "@/components/HelpButton"
+import ModernHelpButton from "@/components/ModernHelpButton"
 import NotificationBell from "@/components/NotificationBell"
 import AIInsightsPopup from "@/components/AIInsights"
 import GroupSwitcher from "@/components/groups/GroupSwitcher"
@@ -994,6 +994,9 @@ export default function DashboardClient({ user }: { user: User }) {
             {/* Notification Bell */}
             <NotificationBell />
             
+            {/* Help Button */}
+            <ModernHelpButton page="dashboard" />
+            
             <button
               onClick={handleSignOut}
               className="px-6 py-3 rounded-xl font-semibold hover:opacity-80 transition-all duration-300 flex items-center gap-2"
@@ -1112,7 +1115,7 @@ export default function DashboardClient({ user }: { user: User }) {
             }}
             onClick={() => router.push('/expenses')}
           >
-            <div className="rounded-3xl backdrop-blur-xl p-6" style={{background: 'rgba(20, 18, 38, 0.85)', border: '1px solid rgba(255, 255, 255, 0.08)'}}>
+            <div className="rounded-3xl backdrop-blur-xl p-6 flex flex-col h-full" style={{background: 'rgba(20, 18, 38, 0.85)', border: '1px solid rgba(255, 255, 255, 0.08)'}}>
               <div className="flex items-start gap-4 mb-6">
                 <div className="flex-1">
                   <Receipt size={36} weight="duotone" className="mb-4" style={{color: '#E8D9FF'}} />
@@ -1126,15 +1129,61 @@ export default function DashboardClient({ user }: { user: User }) {
                       <svg width="100%" height="100%" viewBox="0 0 100 100" className="drop-shadow-sm">
                         <defs>
                           <linearGradient id="segmentShine" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="rgba(255,255,255,0.2)" />
-                            <stop offset="100%" stopColor="rgba(0,0,0,0.1)" />
+                            <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
+                            <stop offset="100%" stopColor="rgba(0,0,0,0.03)" />
+                          </linearGradient>
+                          <linearGradient id="depthShadow" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+                            <stop offset="100%" stopColor="rgba(0,0,0,0.4)" />
+                          </linearGradient>
+                          <filter id="innerShadow">
+                            <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+                            <feOffset dx="0" dy="2" result="offsetblur"/>
+                            <feComponentTransfer>
+                              <feFuncA type="linear" slope="0.5"/>
+                            </feComponentTransfer>
+                            <feMerge>
+                              <feMergeNode/>
+                              <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                          </filter>
+                          <linearGradient id="expenseGradient1" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#FF78A8" />
+                            <stop offset="50%" stopColor="#FF6B9D" />
+                            <stop offset="100%" stopColor="#F05D8A" />
+                          </linearGradient>
+                          <linearGradient id="expenseGradient2" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#D49FE3" />
+                            <stop offset="50%" stopColor="#CE93D8" />
+                            <stop offset="100%" stopColor="#C080CF" />
+                          </linearGradient>
+                          <linearGradient id="expenseGradient3" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#FFC05F" />
+                            <stop offset="50%" stopColor="#FFB74D" />
+                            <stop offset="100%" stopColor="#FFA73B" />
+                          </linearGradient>
+                          <linearGradient id="expenseGradient4" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#5ECBFF" />
+                            <stop offset="50%" stopColor="#4FC3F7" />
+                            <stop offset="100%" stopColor="#3DB5E8" />
+                          </linearGradient>
+                          <linearGradient id="expenseGradient5" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#F57199" />
+                            <stop offset="50%" stopColor="#F06292" />
+                            <stop offset="100%" stopColor="#E64F82" />
+                          </linearGradient>
+                          <linearGradient id="expenseGradient6" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#A083D6" />
+                            <stop offset="50%" stopColor="#9575CD" />
+                            <stop offset="100%" stopColor="#8662BD" />
                           </linearGradient>
                         </defs>
+                        <circle cx="50" cy="50" r="45.5" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
                         <g transform="rotate(-90 50 50)">
                           {(() => {
                             const total = expensesByCategory.reduce((sum, cat) => sum + cat.total, 0);
                             let currentAngle = 0;
-                            const premiumColors = ['#FFB3E6', '#D19CFF', '#FFC35A', '#FF7AD9'];
+                            const premiumGradients = ['url(#expenseGradient1)', 'url(#expenseGradient2)', 'url(#expenseGradient3)', 'url(#expenseGradient4)', 'url(#expenseGradient5)', 'url(#expenseGradient6)'];
                             return expensesByCategory.map((cat, idx) => {
                               const percentage = (cat.total / total) * 100;
                               const angle = (percentage / 100) * 360;
@@ -1143,42 +1192,88 @@ export default function DashboardClient({ user }: { user: User }) {
                               
                               const startRad = (startAngle * Math.PI) / 180;
                               const endRad = (currentAngle * Math.PI) / 180;
-                              const x1 = 50 + 42 * Math.cos(startRad);
-                              const y1 = 50 + 42 * Math.sin(startRad);
-                              const x2 = 50 + 42 * Math.cos(endRad);
-                              const y2 = 50 + 42 * Math.sin(endRad);
+                              const x1 = 50 + 45 * Math.cos(startRad);
+                              const y1 = 50 + 45 * Math.sin(startRad);
+                              const x2 = 50 + 45 * Math.cos(endRad);
+                              const y2 = 50 + 45 * Math.sin(endRad);
                               const largeArc = angle > 180 ? 1 : 0;
-                              const color = premiumColors[idx % premiumColors.length];
+                              const gradient = premiumGradients[idx % premiumGradients.length];
+                              
+                              // 3D layering efekat - svaki segment je malo "iznad" prethodnog
+                              const shadowIntensity = 0.4 - (idx * 0.08); // jača senka za gornje segmente
+                              const offsetX = idx * 0.15; // blagi horizontalni offset
+                              const offsetY = idx * 0.15; // blagi vertikalni offset
+                              const depthOffset = 1.5; // offset za dubinu
                               
                               return (
-                                <g key={idx}>
+                                <g key={idx} transform={`translate(${offsetX}, ${offsetY})`}>
+                                  {/* Donja "ploča" - senka za dubinu */}
                                   <path
-                                    d={`M 50 50 L ${x1} ${y1} A 42 42 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                                    fill={color}
-                                    className="hover:opacity-90 transition-opacity"
-                                    style={{filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'}}
+                                    d={`M ${50 + depthOffset} ${50 + depthOffset} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} Z`}
+                                    fill="rgba(0,0,0,0.25)"
+                                    opacity="0.6"
                                   />
+                                  
+                                  {/* Bočna "debljina" segmenta */}
                                   <path
-                                    d={`M 50 50 L ${x1} ${y1} A 42 42 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                    d={`M ${x1} ${y1} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} L ${x2} ${y2} A 45 45 0 ${largeArc ? 0 : 1} 0 ${x1} ${y1} Z`}
+                                    fill="url(#depthShadow)"
+                                    opacity="0.5"
+                                  />
+                                  
+                                  {/* Glavni segment - gornja površina */}
+                                  <path
+                                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                    fill={gradient}
+                                    className="hover:opacity-95 transition-all"
+                                    style={{
+                                      filter: `drop-shadow(0 ${2 + idx * 0.5}px ${5 + idx * 1.5}px rgba(0,0,0,${shadowIntensity + 0.15}))`,
+                                      transform: `translateZ(${idx * 2}px)`
+                                    }}
+                                  />
+                                  
+                                  {/* Inner shadow za još veću dubinu */}
+                                  <path
+                                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                    fill="rgba(0,0,0,0.15)"
+                                    style={{filter: 'url(#innerShadow)'}}
+                                  />
+                                  
+                                  {/* Highlight na gornjoj ivici */}
+                                  <path
+                                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
                                     fill="url(#segmentShine)"
-                                    opacity="0.2"
+                                    opacity={0.18 + (idx * 0.02)}
                                   />
+                                  
+                                  {/* Outline za definiciju */}
                                   <path
-                                    d={`M 50 50 L ${x1} ${y1} A 42 42 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
                                     fill="none"
-                                    stroke="rgba(255, 255, 255, 0.25)"
+                                    stroke="rgba(255, 255, 255, 0.06)"
                                     strokeWidth="1"
+                                  />
+                                  
+                                  {/* Top edge highlight */}
+                                  <path
+                                    d={`A 45 45 0 ${largeArc} 1 ${x2} ${y2}`}
+                                    fill="none"
+                                    stroke="rgba(255, 255, 255, 0.15)"
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                    transform={`translate(${x1}, ${y1})`}
+                                    opacity="0.4"
                                   />
                                 </g>
                               );
                             });
                           })()}
                         </g>
-                        <circle cx="50" cy="50" r="20" fill="rgba(20, 18, 36, 0.95)" stroke="rgba(255, 184, 230, 0.3)" strokeWidth="1.5" />
-                        <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="14" fontWeight="bold">
+                        <circle cx="50" cy="50" r="20" fill="#10111A" stroke="rgba(228, 88, 214, 0.35)" strokeWidth="1.5" />
+                        <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="14" fontWeight="bold" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
                           {expensesByCategory.length}
                         </text>
-                        <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" fill="#E5E5E5" fontSize="8" opacity="0.7">
+                        <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="8" opacity="0.9" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
                           kat.
                         </text>
                       </svg>
@@ -1187,7 +1282,7 @@ export default function DashboardClient({ user }: { user: User }) {
                       {expensesByCategory.slice(0, 4).map((cat, idx) => {
                         const total = expensesByCategory.reduce((sum, c) => sum + c.total, 0);
                         const percentage = ((cat.total / total) * 100).toFixed(1);
-                        const premiumColors = ['#FFB3E6', '#D19CFF', '#FFC35A', '#FF7AD9'];
+                        const premiumColors = ['#FF6B9D', '#CE93D8', '#FFB74D', '#4FC3F7', '#F06292', '#9575CD'];
                         const color = premiumColors[idx % premiumColors.length];
                         return (
                           <div key={idx} className="flex items-center gap-2.5 group">
@@ -1204,18 +1299,19 @@ export default function DashboardClient({ user }: { user: User }) {
                 )}
               </div>
               
-              {recentExpenses.length > 0 && (
-                <div className="flex flex-col gap-3 lg:gap-4 mt-6 min-h-[300px]">
-                  <div className="text-[10px] font-bold tracking-wide" style={{color: '#E8D9FF', opacity: 0.7, fontFamily: '"Inter", sans-serif'}}>POSLEDNJI TROŠKOVI</div>
-                  {recentExpenses.map((expense, idx) => {
-                    console.log(`💰 Rendering expense "${expense.description}":`, { 
-                      currency: expense.currency, 
-                      amount: expense.amount,
-                      amountInRSD: expense.amountInRSD 
-                    })
-                    const IconComponent = getIcon(expense.category?.icon);
-                    return (
-                      <div 
+              <div className="flex flex-col gap-3 lg:gap-4 mt-6 flex-grow" style={{minHeight: '300px'}}>
+                <div className="text-[10px] font-bold tracking-wide" style={{color: '#E8D9FF', opacity: 0.7, fontFamily: '"Inter", sans-serif'}}>POSLEDNJI TROŠKOVI</div>
+                {recentExpenses.length > 0 ? (
+                  <>
+                    {recentExpenses.map((expense, idx) => {
+                      console.log(`💰 Rendering expense "${expense.description}":`, { 
+                        currency: expense.currency, 
+                        amount: expense.amount,
+                        amountInRSD: expense.amountInRSD 
+                      })
+                      const IconComponent = getIcon(expense.category?.icon);
+                      return (
+                        <div 
                         key={expense.id}
                         data-tour={idx === 0 ? "expense-item" : undefined}
                         className="rounded-xl p-4 flex items-center justify-between bg-white/5 transition-all duration-[120ms] ease-out hover:brightness-[1.02] hover:scale-[1.01]"
@@ -1265,11 +1361,18 @@ export default function DashboardClient({ user }: { user: User }) {
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              )}
+                  })}</>
+                ) : (
+                  <div className="flex items-center justify-center" style={{minHeight: '280px'}}>
+                    <div className="text-center">
+                      <Receipt size={48} weight="duotone" style={{color: '#E8D9FF', opacity: 0.3, margin: '0 auto 12px'}} />
+                      <p className="text-sm" style={{color: '#E8D9FF', opacity: 0.5, fontFamily: '"Inter", sans-serif'}}>Trenutno nema unetih troškova</p>
+                    </div>
+                  </div>
+                )}
+              </div>
               
-              <div className="p-3 rounded-[16px] mt-6" style={{background: 'rgba(0, 0, 0, 0.4)', border: '1px solid rgba(255, 255, 255, 0.06)'}}>
+              <div className="p-3 rounded-[16px] mt-6 flex-shrink-0" style={{background: 'rgba(0, 0, 0, 0.4)', border: '1px solid rgba(255, 255, 255, 0.06)'}}>
                 <button
                   onClick={(e) => { e.stopPropagation(); router.push('/expenses'); }}
                   className="w-full py-3 rounded-xl font-semibold cursor-pointer border transition-all duration-150 ease-out"
@@ -1305,7 +1408,7 @@ export default function DashboardClient({ user }: { user: User }) {
             }}
             onClick={() => router.push('/incomes')}
           >
-            <div className="rounded-3xl backdrop-blur-xl p-6" style={{background: 'rgba(20, 18, 38, 0.85)', border: '1px solid rgba(255, 255, 255, 0.08)'}}>
+            <div className="rounded-3xl backdrop-blur-xl p-6 flex flex-col h-full" style={{background: 'rgba(20, 18, 38, 0.85)', border: '1px solid rgba(255, 255, 255, 0.08)'}}>
               <div className="flex items-start gap-4 mb-6">
                 <div className="flex-1">
                   <CurrencyCircleDollar size={36} weight="duotone" className="mb-4" style={{color: '#D3FFF2'}} />
@@ -1319,15 +1422,61 @@ export default function DashboardClient({ user }: { user: User }) {
                       <svg width="100%" height="100%" viewBox="0 0 100 100" className="drop-shadow-sm">
                         <defs>
                           <linearGradient id="segmentShineIncome" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="rgba(255,255,255,0.2)" />
-                            <stop offset="100%" stopColor="rgba(0,0,0,0.1)" />
+                            <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
+                            <stop offset="100%" stopColor="rgba(0,0,0,0.03)" />
+                          </linearGradient>
+                          <linearGradient id="depthShadowIncome" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+                            <stop offset="100%" stopColor="rgba(0,0,0,0.4)" />
+                          </linearGradient>
+                          <filter id="innerShadowIncome">
+                            <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+                            <feOffset dx="0" dy="2" result="offsetblur"/>
+                            <feComponentTransfer>
+                              <feFuncA type="linear" slope="0.5"/>
+                            </feComponentTransfer>
+                            <feMerge>
+                              <feMergeNode/>
+                              <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                          </filter>
+                          <linearGradient id="incomeGradient1" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#5AD7EB" />
+                            <stop offset="50%" stopColor="#4DD0E1" />
+                            <stop offset="100%" stopColor="#3DC3D4" />
+                          </linearGradient>
+                          <linearGradient id="incomeGradient2" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#8DD08F" />
+                            <stop offset="50%" stopColor="#81C784" />
+                            <stop offset="100%" stopColor="#72B975" />
+                          </linearGradient>
+                          <linearGradient id="incomeGradient3" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#5AC0B8" />
+                            <stop offset="50%" stopColor="#4DB6AC" />
+                            <stop offset="100%" stopColor="#3EA69D" />
+                          </linearGradient>
+                          <linearGradient id="incomeGradient4" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#B9DE8D" />
+                            <stop offset="50%" stopColor="#AED581" />
+                            <stop offset="100%" stopColor="#9EC870" />
+                          </linearGradient>
+                          <linearGradient id="incomeGradient5" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#5BCDFF" />
+                            <stop offset="50%" stopColor="#4FC3F7" />
+                            <stop offset="100%" stopColor="#3FB4E8" />
+                          </linearGradient>
+                          <linearGradient id="incomeGradient6" x1="0%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" stopColor="#72E527" />
+                            <stop offset="50%" stopColor="#64DD17" />
+                            <stop offset="100%" stopColor="#58CA0A" />
                           </linearGradient>
                         </defs>
+                        <circle cx="50" cy="50" r="45.5" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
                         <g transform="rotate(-90 50 50)">
                           {(() => {
                             const total = incomesByCategory.reduce((sum, cat) => sum + cat.total, 0);
                             let currentAngle = 0;
-                            const premiumColors = ['#B4FFE4', '#6FFFC4', '#7FDFFF', '#00BFA6'];
+                            const premiumGradients = ['url(#incomeGradient1)', 'url(#incomeGradient2)', 'url(#incomeGradient3)', 'url(#incomeGradient4)', 'url(#incomeGradient5)', 'url(#incomeGradient6)'];
                             return incomesByCategory.map((cat, idx) => {
                               const percentage = (cat.total / total) * 100;
                               const angle = (percentage / 100) * 360;
@@ -1336,42 +1485,88 @@ export default function DashboardClient({ user }: { user: User }) {
                               
                               const startRad = (startAngle * Math.PI) / 180;
                               const endRad = (currentAngle * Math.PI) / 180;
-                              const x1 = 50 + 42 * Math.cos(startRad);
-                              const y1 = 50 + 42 * Math.sin(startRad);
-                              const x2 = 50 + 42 * Math.cos(endRad);
-                              const y2 = 50 + 42 * Math.sin(endRad);
+                              const x1 = 50 + 45 * Math.cos(startRad);
+                              const y1 = 50 + 45 * Math.sin(startRad);
+                              const x2 = 50 + 45 * Math.cos(endRad);
+                              const y2 = 50 + 45 * Math.sin(endRad);
                               const largeArc = angle > 180 ? 1 : 0;
-                              const color = premiumColors[idx % premiumColors.length];
+                              const gradient = premiumGradients[idx % premiumGradients.length];
+                              
+                              // 3D layering efekat - svaki segment je malo "iznad" prethodnog
+                              const shadowIntensity = 0.4 - (idx * 0.08); // jača senka za gornje segmente
+                              const offsetX = idx * 0.15; // blagi horizontalni offset
+                              const offsetY = idx * 0.15; // blagi vertikalni offset
+                              const depthOffset = 1.5; // offset za dubinu
                               
                               return (
-                                <g key={idx}>
+                                <g key={idx} transform={`translate(${offsetX}, ${offsetY})`}>
+                                  {/* Donja "ploča" - senka za dubinu */}
                                   <path
-                                    d={`M 50 50 L ${x1} ${y1} A 42 42 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                                    fill={color}
-                                    className="hover:opacity-90 transition-opacity"
-                                    style={{filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'}}
+                                    d={`M ${50 + depthOffset} ${50 + depthOffset} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} Z`}
+                                    fill="rgba(0,0,0,0.25)"
+                                    opacity="0.6"
                                   />
+                                  
+                                  {/* Bočna "debljina" segmenta */}
                                   <path
-                                    d={`M 50 50 L ${x1} ${y1} A 42 42 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                    d={`M ${x1} ${y1} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} L ${x2} ${y2} A 45 45 0 ${largeArc ? 0 : 1} 0 ${x1} ${y1} Z`}
+                                    fill="url(#depthShadowIncome)"
+                                    opacity="0.5"
+                                  />
+                                  
+                                  {/* Glavni segment - gornja površina */}
+                                  <path
+                                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                    fill={gradient}
+                                    className="hover:opacity-95 transition-all"
+                                    style={{
+                                      filter: `drop-shadow(0 ${2 + idx * 0.5}px ${5 + idx * 1.5}px rgba(0,0,0,${shadowIntensity + 0.15}))`,
+                                      transform: `translateZ(${idx * 2}px)`
+                                    }}
+                                  />
+                                  
+                                  {/* Inner shadow za još veću dubinu */}
+                                  <path
+                                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                    fill="rgba(0,0,0,0.15)"
+                                    style={{filter: 'url(#innerShadowIncome)'}}
+                                  />
+                                  
+                                  {/* Highlight na gornjoj ivici */}
+                                  <path
+                                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
                                     fill="url(#segmentShineIncome)"
-                                    opacity="0.2"
+                                    opacity={0.18 + (idx * 0.02)}
                                   />
+                                  
+                                  {/* Outline za definiciju */}
                                   <path
-                                    d={`M 50 50 L ${x1} ${y1} A 42 42 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                    d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
                                     fill="none"
-                                    stroke="rgba(255, 255, 255, 0.25)"
+                                    stroke="rgba(255, 255, 255, 0.06)"
                                     strokeWidth="1"
+                                  />
+                                  
+                                  {/* Top edge highlight */}
+                                  <path
+                                    d={`A 45 45 0 ${largeArc} 1 ${x2} ${y2}`}
+                                    fill="none"
+                                    stroke="rgba(255, 255, 255, 0.15)"
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                    transform={`translate(${x1}, ${y1})`}
+                                    opacity="0.4"
                                   />
                                 </g>
                               );
                             });
                           })()}
                         </g>
-                        <circle cx="50" cy="50" r="20" fill="rgba(20, 18, 36, 0.95)" stroke="rgba(180, 255, 228, 0.3)" strokeWidth="1.5" />
-                        <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="14" fontWeight="bold">
+                        <circle cx="50" cy="50" r="20" fill="#10111A" stroke="rgba(100, 243, 194, 0.35)" strokeWidth="1.5" />
+                        <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="14" fontWeight="bold" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
                           {incomesByCategory.length}
                         </text>
-                        <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" fill="#E5E5E5" fontSize="8" opacity="0.7">
+                        <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="8" opacity="0.9" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
                           kat.
                         </text>
                       </svg>
@@ -1380,7 +1575,7 @@ export default function DashboardClient({ user }: { user: User }) {
                       {incomesByCategory.slice(0, 4).map((cat, idx) => {
                         const total = incomesByCategory.reduce((sum, c) => sum + c.total, 0);
                         const percentage = ((cat.total / total) * 100).toFixed(1);
-                        const premiumColors = ['#B4FFE4', '#6FFFC4', '#7FDFFF', '#00BFA6'];
+                        const premiumColors = ['#4DD0E1', '#81C784', '#4DB6AC', '#AED581', '#4FC3F7', '#64DD17'];
                         const color = premiumColors[idx % premiumColors.length];
                         return (
                           <div key={idx} className="flex items-center gap-2.5 group">
@@ -1397,13 +1592,14 @@ export default function DashboardClient({ user }: { user: User }) {
                 )}
               </div>
               
-              {recentIncomes.length > 0 && (
-                <div className="flex flex-col gap-3 lg:gap-4 mt-6 min-h-[300px]">
-                  <div className="text-[10px] font-bold tracking-wide" style={{color: '#D3FFF2', opacity: 0.7, fontFamily: '"Inter", sans-serif'}}>POSLEDNJI PRIHODI</div>
-                  {recentIncomes.map((income, idx) => {
-                    const IconComponent = getIcon(income.category?.icon);
-                    return (
-                      <div 
+              <div className="flex flex-col gap-3 lg:gap-4 mt-6 flex-grow" style={{minHeight: '300px'}}>
+                <div className="text-[10px] font-bold tracking-wide" style={{color: '#D3FFF2', opacity: 0.7, fontFamily: '"Inter", sans-serif'}}>POSLEDNJI PRIHODI</div>
+                {recentIncomes.length > 0 ? (
+                  <>
+                    {recentIncomes.map((income, idx) => {
+                      const IconComponent = getIcon(income.category?.icon);
+                      return (
+                        <div 
                         key={income.id}
                         className="rounded-xl p-4 flex items-center justify-between bg-white/5 transition-all duration-[120ms] ease-out hover:brightness-[1.02] hover:scale-[1.01]"
                         style={{border: '1px solid rgba(255, 255, 255, 0.04)'}}
@@ -1452,11 +1648,18 @@ export default function DashboardClient({ user }: { user: User }) {
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              )}
+                  })}</>
+                ) : (
+                  <div className="flex items-center justify-center" style={{minHeight: '280px'}}>
+                    <div className="text-center">
+                      <CurrencyCircleDollar size={48} weight="duotone" style={{color: '#D3FFF2', opacity: 0.3, margin: '0 auto 12px'}} />
+                      <p className="text-sm" style={{color: '#D3FFF2', opacity: 0.5, fontFamily: '"Inter", sans-serif'}}>Trenutno nema unetih prihoda</p>
+                    </div>
+                  </div>
+                )}
+              </div>
               
-              <div className="p-3 rounded-[16px] mt-6" style={{background: 'rgba(0, 0, 0, 0.4)', border: '1px solid rgba(255, 255, 255, 0.06)'}}>
+              <div className="p-3 rounded-[16px] mt-6 flex-shrink-0" style={{background: 'rgba(0, 0, 0, 0.4)', border: '1px solid rgba(255, 255, 255, 0.06)'}}>
                 <button
                   onClick={(e) => { e.stopPropagation(); router.push('/incomes'); }}
                   className="w-full py-3 rounded-xl font-semibold cursor-pointer border transition-all duration-150 ease-out"
@@ -1489,27 +1692,27 @@ export default function DashboardClient({ user }: { user: User }) {
             <h2 className="text-xl font-semibold mb-6" style={{fontFamily: '"Inter", sans-serif', color: '#FFFFFF'}}>Brzi pristup</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
               <button onClick={() => router.push('/statistics')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
-                <ChartLine size={24} weight="bold" style={{color: '#B794FF'}} className="mx-auto mb-4" />
+                <ChartLine size={24} weight="bold" style={{color: '#8A63D2', filter: 'drop-shadow(0 0 1px rgba(138, 99, 210, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Statistika</div>
               </button>
               <button onClick={() => router.push('/budgets')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
-                <Wallet size={24} weight="bold" style={{color: '#FFD93D'}} className="mx-auto mb-4" />
+                <Wallet size={24} weight="bold" style={{color: '#E6C14A', filter: 'drop-shadow(0 0 1px rgba(230, 193, 74, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Budžeti</div>
               </button>
               <button onClick={() => router.push('/groups')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
-                <Users size={24} weight="bold" style={{color: '#7FDFFF'}} className="mx-auto mb-4" />
+                <Users size={24} weight="bold" style={{color: '#4EC8E4', filter: 'drop-shadow(0 0 1px rgba(78, 200, 228, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Grupe</div>
               </button>
               <button onClick={() => router.push('/settlements')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
-                <CurrencyCircleDollar size={24} weight="bold" style={{color: '#1BD96A'}} className="mx-auto mb-4" />
+                <CurrencyCircleDollar size={24} weight="bold" style={{color: '#1FBFA4', filter: 'drop-shadow(0 0 1px rgba(31, 191, 164, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Poravnanja</div>
               </button>
               <button onClick={() => router.push('/categories')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
-                <Tag size={24} weight="bold" style={{color: '#6FFFC4'}} className="mx-auto mb-4" />
+                <Tag size={24} weight="bold" style={{color: '#1FBFA4', filter: 'drop-shadow(0 0 1px rgba(31, 191, 164, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Kategorije</div>
               </button>
               <button onClick={() => router.push('/profile')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
-                <Gear size={24} weight="bold" style={{color: '#FFB3E6'}} className="mx-auto mb-4" />
+                <Gear size={24} weight="bold" style={{color: '#C339B5', filter: 'drop-shadow(0 0 1px rgba(195, 57, 181, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Profil</div>
               </button>
           </div>
@@ -1517,10 +1720,25 @@ export default function DashboardClient({ user }: { user: User }) {
         <div className="fixed flex flex-col gap-4 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-8" style={{bottom: '32px'}} data-tour="add-expense">
           <button
             onClick={() => setShowExpenseModal(true)}
-            className="w-[60px] h-[60px] rounded-full bg-gradient-to-br from-[#6A4DFF] via-[#A54DFF] to-[#FF4DB8] hover:scale-105 transition-all duration-300 flex items-center justify-center group relative"
-            style={{boxShadow: '0 4px 16px rgba(255, 77, 184, 0.25)', border: '1px solid rgba(255, 255, 255, 0.08)'}}
+            className="w-[60px] h-[60px] rounded-full transition-all duration-300 flex items-center justify-center group relative"
+            style={{
+              background: 'linear-gradient(135deg, #C339B5 0%, #AB2A9E 100%)',
+              boxShadow: '0 0 10px rgba(195, 57, 181, 0.35), 0 4px 16px rgba(0, 0, 0, 0.3)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              transform: 'scale(1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #D84CC8 0%, #C339B5 100%)';
+              e.currentTarget.style.boxShadow = '0 0 14px rgba(216, 76, 200, 0.45), 0 6px 20px rgba(0, 0, 0, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #C339B5 0%, #AB2A9E 100%)';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(195, 57, 181, 0.35), 0 4px 16px rgba(0, 0, 0, 0.3)';
+            }}
           >
-            <Receipt size={24} weight="bold" style={{color: '#FFFFFF'}} />
+            <Receipt size={24} weight="bold" style={{color: '#FFFFFF', opacity: 1, filter: 'brightness(1.05)'}} />
             <span className="absolute right-20 bg-[#242236] px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)'}}>
               Dodaj trošak
             </span>
@@ -1528,10 +1746,25 @@ export default function DashboardClient({ user }: { user: User }) {
 
           <button
             onClick={() => setShowIncomeModal(true)}
-            className="w-[60px] h-[60px] rounded-full bg-gradient-to-br from-[#1BD96A] via-[#13C4A3] to-[#0FB2D6] hover:scale-105 transition-all duration-300 flex items-center justify-center group relative"
-            style={{boxShadow: '0 4px 16px rgba(19, 196, 163, 0.25)', border: '1px solid rgba(255, 255, 255, 0.08)'}}
+            className="w-[60px] h-[60px] rounded-full transition-all duration-300 flex items-center justify-center group relative"
+            style={{
+              background: 'linear-gradient(135deg, #1FBFA4 0%, #12A88E 100%)',
+              boxShadow: '0 0 10px rgba(31, 191, 164, 0.35), 0 4px 16px rgba(0, 0, 0, 0.3)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              transform: 'scale(1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #2ED1B6 0%, #1FBFA4 100%)';
+              e.currentTarget.style.boxShadow = '0 0 14px rgba(46, 209, 182, 0.45), 0 6px 20px rgba(0, 0, 0, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #1FBFA4 0%, #12A88E 100%)';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(31, 191, 164, 0.35), 0 4px 16px rgba(0, 0, 0, 0.3)';
+            }}
           >
-            <CurrencyCircleDollar size={24} weight="bold" style={{color: '#FFFFFF'}} />
+            <CurrencyCircleDollar size={24} weight="bold" style={{color: '#FFFFFF', opacity: 1, filter: 'brightness(1.05)'}} />
             <span className="absolute right-20 bg-[#242236] px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)'}}>
               Dodaj prihod
             </span>
@@ -2007,9 +2240,6 @@ export default function DashboardClient({ user }: { user: User }) {
           onClose={() => setShowAIPopup(false)}
           autoShowOnLogin={aiAutoShow}
         />
-
-        {/* Help Button */}
-        <HelpButton page="dashboard" />
       </div>
     </div>
   )

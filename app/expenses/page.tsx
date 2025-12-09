@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Plus, Trash, CalendarBlank, CaretLeft, CaretRight, X, TrendDown, PencilSimple, CreditCard, Repeat, DownloadSimple, FilePdf, FileText, Funnel } from "phosphor-react"
 import CategorySelector from "@/lib/components/CategorySelector"
 import ReceiptUploader from "@/lib/components/ReceiptUploader"
-import HelpButton from "@/components/HelpButton"
+import ModernHelpButton from "@/components/ModernHelpButton"
 import { getIcon } from "@/lib/iconMapping"
 import { generatePDFReport, downloadPDF } from "@/lib/pdf-generator"
 import { showToast } from "@/lib/toast"
@@ -573,14 +573,19 @@ export default function ExpensesPage() {
               </button>
             </div>
           </div>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="px-6 py-3 rounded-2xl font-semibold backdrop-blur-xl border border-white/10 hover:bg-white/10 transition-all duration-300 flex items-center gap-2"
-            style={{background: 'rgba(255, 255, 255, 0.05)', color: '#B8B7C5'}}
-          >
-            <ArrowLeft size={20} weight="bold" />
-            Nazad
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Help Button */}
+            <ModernHelpButton page="expenses" />
+            
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="px-6 py-3 rounded-2xl font-semibold backdrop-blur-xl border border-white/10 hover:bg-white/10 transition-all duration-300 flex items-center gap-2"
+              style={{background: 'rgba(255, 255, 255, 0.05)', color: '#B8B7C5'}}
+            >
+              <ArrowLeft size={20} weight="bold" />
+              Nazad
+            </button>
+          </div>
         </div>
 
         <div className="rounded-3xl relative p-6 lg:p-7 shadow-[0_0_35px_-10px_rgba(0,0,0,0.45)]" style={{background: 'linear-gradient(145deg, #1E1B2A, #171421)', border: '1px solid rgba(255,255,255,0.06)', height: '120px', marginBottom: '32px'}}>
@@ -1485,9 +1490,6 @@ export default function ExpensesPage() {
             </div>
           </div>
         )}
-
-        {/* Help Button */}
-        <HelpButton page="expenses" />
       </div>
 
       {/* Filters Drawer */}

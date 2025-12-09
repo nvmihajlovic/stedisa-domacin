@@ -18,6 +18,7 @@ import {
   Warning,
   ChartLine,
   ChartPie,
+  Trash,
 } from "phosphor-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
@@ -143,6 +144,7 @@ export default function GroupsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteResult, setInviteResult] = useState<any>(null);
@@ -150,6 +152,8 @@ export default function GroupsPage() {
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log("🟣 Groups page mounted - resetting showCreateModal to false");
+    setShowCreateModal(false); // Reset modal state on mount
     fetchGroupData();
     fetchActiveGroup();
   }, []);
@@ -255,6 +259,29 @@ export default function GroupsPage() {
     }
   };
 
+  const handleDeleteGroup = async () => {
+    if (!group) return;
+
+    try {
+      const res = await fetch(`/api/groups/${group.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        addToast(data.message || "Grupa uspešno obrisana", "success");
+        setShowDeleteModal(false);
+        router.push("/dashboard");
+      } else {
+        const data = await res.json();
+        addToast(data.error || "Greška pri brisanju grupe", "error");
+      }
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      addToast("Greška pri brisanju grupe", "error");
+    }
+  };
+
   const formatNumber = (num: number) => {
     return num.toLocaleString("sr-RS", {
       minimumFractionDigits: 2,
@@ -312,7 +339,14 @@ export default function GroupsPage() {
                 ili poslovnim partnerima.
               </p>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  console.log("🔵 KLIKNUTO: Kreiraj grupu dugme");
+                  console.log("📊 State pre: showCreateModal =", showCreateModal);
+                  setShowCreateModal(prev => {
+                    console.log("📊 setShowCreateModal callback - prev:", prev, " new:", !prev);
+                    return !prev;
+                  });
+                }}
                 className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg shadow-purple-500/25"
               >
                 Kreiraj grupu
@@ -320,6 +354,21 @@ export default function GroupsPage() {
             </div>
           </motion.div>
         </div>
+
+        {/* Create Group Modal - MORA BITI OVDE za empty state! */}
+        {showCreateModal && (
+          <>
+            {console.log("🟢 RENDERUJEM CreateGroupModal (empty state) - showCreateModal =", showCreateModal)}
+            <CreateGroupModal
+              onClose={() => setShowCreateModal(false)}
+              onSuccess={() => {
+                setShowCreateModal(false);
+                addToast("Grupa uspešno kreirana!", "success");
+                fetchGroupData();
+              }}
+            />
+          </>
+        )}
       </div>
     );
   }
@@ -359,9 +408,9 @@ export default function GroupsPage() {
                   <div
                     className="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
                     style={{
-                      background: "rgba(255, 215, 0, 0.15)",
-                      color: "#FFD700",
-                      border: "1px solid rgba(255, 215, 0, 0.3)",
+                      background: "rgba(230, 193, 74, 0.15)",
+                      color: "#E6C14A",
+                      border: "1px solid rgba(230, 193, 74, 0.3)",
                     }}
                   >
                     <Crown size={14} weight="fill" />
@@ -442,14 +491,33 @@ export default function GroupsPage() {
                 Pozovi člana
               </button>
             )}
-            <button
-              onClick={() => setShowLeaveModal(true)}
-              className="px-6 py-3 rounded-xl font-semibold hover:opacity-80 transition-all duration-300 flex items-center gap-2"
-              style={{ background: "#242236", border: "1px solid #2E2B44" }}
-            >
-              <SignOut size={20} weight="bold" />
-              Napusti grupu
-            </button>
+            
+            {/* Obriši grupu - samo za vlasnika */}
+            {group.isOwner && (
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="px-6 py-3 rounded-xl font-semibold hover:opacity-80 transition-all duration-300 flex items-center gap-2"
+                style={{ 
+                  background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", 
+                  border: "1px solid rgba(220, 38, 38, 0.3)" 
+                }}
+              >
+                <Trash size={20} weight="bold" />
+                Obriši grupu
+              </button>
+            )}
+            
+            {/* Napusti grupu - za sve članove osim vlasnika */}
+            {!group.isOwner && (
+              <button
+                onClick={() => setShowLeaveModal(true)}
+                className="px-6 py-3 rounded-xl font-semibold hover:opacity-80 transition-all duration-300 flex items-center gap-2"
+                style={{ background: "#242236", border: "1px solid #2E2B44" }}
+              >
+                <SignOut size={20} weight="bold" />
+                Napusti grupu
+              </button>
+            )}
           </div>
         </div>
 
@@ -472,7 +540,7 @@ export default function GroupsPage() {
                 >
                   Ukupni troškovi
                 </div>
-                <TrendDown size={20} weight="duotone" style={{ color: "#FFB3E6" }} />
+                <TrendDown size={20} weight="duotone" style={{ color: "#C339B5" }} />
               </div>
               <div
                 className="text-2xl font-bold"
@@ -501,7 +569,7 @@ export default function GroupsPage() {
                 >
                   Ukupni prihodi
                 </div>
-                <TrendUp size={20} weight="duotone" style={{ color: "#6FFFC4" }} />
+                <TrendUp size={20} weight="duotone" style={{ color: "#1FBFA4" }} />
               </div>
               <div
                 className="text-2xl font-bold"
@@ -533,7 +601,7 @@ export default function GroupsPage() {
                 <Wallet
                   size={20}
                   weight="duotone"
-                  style={{ color: stats.balance >= 0 ? "#7FDFFF" : "#FFB3E6" }}
+                  style={{ color: stats.balance >= 0 ? "#4EC8E4" : "#C339B5" }}
                 />
               </div>
               <div
@@ -563,7 +631,7 @@ export default function GroupsPage() {
                 >
                   Broj transakcija
                 </div>
-                <Receipt size={20} weight="duotone" style={{ color: "#D19CFF" }} />
+                <Receipt size={20} weight="duotone" style={{ color: "#8A63D2" }} />
               </div>
               <div
                 className="text-2xl font-bold"
@@ -832,10 +900,71 @@ export default function GroupsPage() {
         )}
       </AnimatePresence>
 
+      {/* Delete Group Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowDeleteModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1a1b23] rounded-2xl p-8 max-w-md w-full border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">
+                  Obriši grupu
+                </h2>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <X size={24} className="text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
+                  <Trash size={48} className="text-red-400 mx-auto mb-4" />
+                  <p className="text-white font-semibold mb-2">
+                    Da li ste sigurni?
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Brisanje grupe je trajno. Svi troškovi, prihodi i podaci grupe biće obrisani.
+                    Ova akcija se ne može poništiti.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-4 py-3 bg-white/5 text-gray-300 rounded-xl font-semibold hover:bg-white/10 transition-colors"
+                  >
+                    Odustani
+                  </button>
+                  <button
+                    onClick={handleDeleteGroup}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-xl font-semibold hover:from-red-700 hover:to-red-900 transition-all"
+                  >
+                    Obriši grupu
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Create Group Modal */}
       {showCreateModal && (
         <>
-          {console.log("Rendering CreateGroupModal")}
+          {console.log("🟢 RENDERUJEM CreateGroupModal - showCreateModal =", showCreateModal)}
           <CreateGroupModal
             onClose={() => setShowCreateModal(false)}
             onSuccess={() => {
@@ -846,6 +975,8 @@ export default function GroupsPage() {
           />
         </>
       )}
+      
+      {console.log("🔴 Render check: showCreateModal =", showCreateModal)}
     </div>
   );
 }

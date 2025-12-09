@@ -38,6 +38,10 @@ import {
   IdentificationCard,
   Question,
   Laptop,
+  Coffee,
+  FirstAid,
+  PawPrint,
+  Briefcase,
 } from "phosphor-react";
 
 export const iconMapping: { [key: string]: React.ComponentType<any> } = {
@@ -46,7 +50,7 @@ export const iconMapping: { [key: string]: React.ComponentType<any> } = {
   Drop,
   Sparkle,
   TShirt,
-  Sneaker: ShoppingBag, // Using ShoppingBag as alternative for Sneaker
+  Sneaker: ShoppingBag,
   House,
   Lightning,
   Armchair,
@@ -70,6 +74,10 @@ export const iconMapping: { [key: string]: React.ComponentType<any> } = {
   Money,
   Laptop,
   TrendUp,
+  Coffee,
+  FirstAid,
+  PawPrint,
+  Briefcase,
   // Legacy fallbacks
   FilmSlate,
   AirplaneTilt,

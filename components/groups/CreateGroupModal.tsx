@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X } from "phosphor-react"
 
 type CreateGroupModalProps = {
@@ -19,6 +19,11 @@ export default function CreateGroupModal({ onClose, onSuccess }: CreateGroupModa
   const [customEndDate, setCustomEndDate] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  
+  useEffect(() => {
+    console.log("🟢🟢🟢 CreateGroupModal MOUNTED!");
+    return () => console.log("🔴🔴🔴 CreateGroupModal UNMOUNTED!");
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

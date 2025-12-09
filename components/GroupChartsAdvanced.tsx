@@ -148,15 +148,15 @@ export default function GroupChartsAdvanced({
                 <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                   {yoyData.percentageChange > 0 ? (
                     <>
-                      <TrendUp size={16} weight="bold" className="text-red-400" />
-                      <span className="text-xs font-medium text-red-400">
+                      <TrendUp size={16} weight="bold" style={{color: "#C339B5"}} />
+                      <span className="text-xs font-medium" style={{color: "#C339B5"}}>
                         +{Math.abs(yoyData.percentageChange).toFixed(1)}%
                       </span>
                     </>
                   ) : yoyData.percentageChange < 0 ? (
                     <>
-                      <TrendDown size={16} weight="bold" className="text-green-400" />
-                      <span className="text-xs font-medium text-green-400">
+                      <TrendDown size={16} weight="bold" style={{color: "#1FBFA4"}} />
+                      <span className="text-xs font-medium" style={{color: "#1FBFA4"}}>
                         {yoyData.percentageChange.toFixed(1)}%
                       </span>
                     </>
@@ -185,21 +185,18 @@ export default function GroupChartsAdvanced({
                     <span className="text-xs text-white/60">Troškovi</span>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-xs font-semibold ${
-                          momData.expensesChange > 0
-                            ? "text-red-400"
-                            : momData.expensesChange < 0
-                            ? "text-green-400"
-                            : "text-gray-400"
-                        }`}
+                        className="text-xs font-semibold"
+                        style={{
+                          color: momData.expensesChange > 0 ? "#C339B5" : momData.expensesChange < 0 ? "#1FBFA4" : "#9CA3AF"
+                        }}
                       >
                         {momData.expensesChange > 0 ? "+" : ""}
                         {momData.expensesChange.toFixed(1)}%
                       </span>
                       {momData.expensesChange > 0 ? (
-                        <TrendUp size={14} weight="bold" className="text-red-400" />
+                        <TrendUp size={14} weight="bold" style={{color: "#C339B5"}} />
                       ) : momData.expensesChange < 0 ? (
-                        <TrendDown size={14} weight="bold" className="text-green-400" />
+                        <TrendDown size={14} weight="bold" style={{color: "#1FBFA4"}} />
                       ) : null}
                     </div>
                   </div>
@@ -217,21 +214,18 @@ export default function GroupChartsAdvanced({
                     <span className="text-xs text-white/60">Prihodi</span>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-xs font-semibold ${
-                          momData.incomesChange > 0
-                            ? "text-green-400"
-                            : momData.incomesChange < 0
-                            ? "text-red-400"
-                            : "text-gray-400"
-                        }`}
+                        className="text-xs font-semibold"
+                        style={{
+                          color: momData.incomesChange > 0 ? "#1FBFA4" : momData.incomesChange < 0 ? "#C339B5" : "#9CA3AF"
+                        }}
                       >
                         {momData.incomesChange > 0 ? "+" : ""}
                         {momData.incomesChange.toFixed(1)}%
                       </span>
                       {momData.incomesChange > 0 ? (
-                        <TrendUp size={14} weight="bold" className="text-green-400" />
+                        <TrendUp size={14} weight="bold" style={{color: "#1FBFA4"}} />
                       ) : momData.incomesChange < 0 ? (
-                        <TrendDown size={14} weight="bold" className="text-red-400" />
+                        <TrendDown size={14} weight="bold" style={{color: "#C339B5"}} />
                       ) : null}
                     </div>
                   </div>
@@ -259,14 +253,14 @@ export default function GroupChartsAdvanced({
           className="relative rounded-2xl bg-gradient-to-br from-[#1a1b23] to-[#0f1015] p-6 border border-white/10"
         >
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <ChartLine size={24} className="text-blue-400" />
+            <ChartLine size={24} style={{color: "#4EC8E4"}} />
             Bilans kroz vreme (12 meseci)
           </h2>
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={monthlyTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="month" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.04)" />
+              <XAxis dataKey="month" stroke="rgba(255, 255, 255, 0.24)" />
+              <YAxis stroke="rgba(255, 255, 255, 0.24)" />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#1a1b23",
@@ -279,18 +273,18 @@ export default function GroupChartsAdvanced({
               <Line
                 type="monotone"
                 dataKey="expenses"
-                stroke="#FFB3E6"
+                stroke="#C339B5"
                 strokeWidth={2}
                 name="Troškovi"
-                dot={{ fill: "#FFB3E6", r: 4 }}
+                dot={{ fill: "#C339B5", r: 4 }}
               />
               <Line
                 type="monotone"
                 dataKey="incomes"
-                stroke="#6FFFC4"
+                stroke="#1FBFA4"
                 strokeWidth={2}
                 name="Prihodi"
-                dot={{ fill: "#6FFFC4", r: 4 }}
+                dot={{ fill: "#1FBFA4", r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -308,7 +302,7 @@ export default function GroupChartsAdvanced({
             className="relative rounded-2xl bg-gradient-to-br from-[#1a1b23] to-[#0f1015] p-6 border border-white/10"
           >
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <ChartPie size={24} className="text-red-400" />
+              <ChartPie size={24} style={{color: "#C339B5"}} />
               Troškovi po kategorijama
             </h2>
             <div className="flex items-center gap-6">
@@ -373,7 +367,7 @@ export default function GroupChartsAdvanced({
             className="relative rounded-2xl bg-gradient-to-br from-[#1a1b23] to-[#0f1015] p-6 border border-white/10"
           >
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <ChartPie size={24} className="text-green-400" />
+              <ChartPie size={24} style={{color: "#1FBFA4"}} />
               Prihodi po kategorijama
             </h2>
             <div className="flex items-center gap-6">
@@ -441,14 +435,14 @@ export default function GroupChartsAdvanced({
             className="relative rounded-2xl bg-gradient-to-br from-[#1a1b23] to-[#0f1015] p-6 border border-white/10"
           >
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <ChartBar size={24} className="text-purple-400" />
+              <ChartBar size={24} style={{color: "#8A63D2"}} />
               Troškovi po danima
             </h2>
             <ResponsiveContainer width="100%" height={375}>
               <BarChart data={dailyExpenses}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="day" stroke="#9CA3AF" />
-                <YAxis stroke="#9CA3AF" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.04)" />
+                <XAxis dataKey="day" stroke="rgba(255, 255, 255, 0.24)" />
+                <YAxis stroke="rgba(255, 255, 255, 0.24)" />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#1a1b23",
@@ -456,7 +450,7 @@ export default function GroupChartsAdvanced({
                     borderRadius: "8px",
                   }}
                 />
-                <Bar dataKey="amount" fill="#FFB3E6" name="Iznos" />
+                <Bar dataKey="amount" fill="#C339B5" name="Iznos" />
               </BarChart>
             </ResponsiveContainer>
           </motion.div>
@@ -601,7 +595,7 @@ export default function GroupChartsAdvanced({
                   <Line
                     type="monotone"
                     dataKey="expenses"
-                    stroke="#FFB3E6"
+                    stroke="#C339B5"
                     strokeWidth={2}
                     name="Troškovi"
                     dot={false}
@@ -609,7 +603,7 @@ export default function GroupChartsAdvanced({
                   <Line
                     type="monotone"
                     dataKey="incomes"
-                    stroke="#6FFFC4"
+                    stroke="#1FBFA4"
                     strokeWidth={2}
                     name="Prihodi"
                     dot={false}
@@ -683,7 +677,7 @@ export default function GroupChartsAdvanced({
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey="growth" fill="#7FDFFF" name="Rast %" />
+                  <Bar dataKey="growth" fill="#4EC8E4" name="Rast %" />
                 </BarChart>
               </ResponsiveContainer>
             </motion.div>
@@ -707,7 +701,7 @@ export default function GroupChartsAdvanced({
                 <div className="text-center">
                   <div
                     className="text-6xl font-bold mb-2"
-                    style={{ color: monthsInProfit >= 6 ? "#6FFFC4" : "#FFB3E6" }}
+                    style={{ color: monthsInProfit >= 6 ? "#1FBFA4" : "#C339B5" }}
                   >
                     {monthsInProfit}
                   </div>
@@ -873,23 +867,21 @@ export default function GroupChartsAdvanced({
           <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex flex-col gap-2">
               <span className="text-xs text-white/50">Ukupni troškovi</span>
-              <span className="text-xl font-bold text-red-400">
+              <span className="text-xl font-bold" style={{color: "#C339B5"}}>
                 {monthlyTrend.reduce((sum, m) => sum + m.expenses, 0).toLocaleString("sr-RS")} RSD
               </span>
             </div>
             <div className="flex flex-col gap-2">
               <span className="text-xs text-white/50">Ukupni prihodi</span>
-              <span className="text-xl font-bold text-green-400">
+              <span className="text-xl font-bold" style={{color: "#1FBFA4"}}>
                 {monthlyTrend.reduce((sum, m) => sum + m.incomes, 0).toLocaleString("sr-RS")} RSD
               </span>
             </div>
             <div className="flex flex-col gap-2">
               <span className="text-xs text-white/50">Ukupan bilans</span>
-              <span className={`text-xl font-bold ${
-                monthlyTrend.reduce((sum, m) => sum + (m.incomes - m.expenses), 0) >= 0 
-                  ? 'text-green-400' 
-                  : 'text-red-400'
-              }`}>
+              <span className="text-xl font-bold" style={{
+                color: monthlyTrend.reduce((sum, m) => sum + (m.incomes - m.expenses), 0) >= 0 ? "#1FBFA4" : "#C339B5"
+              }}>
                 {monthlyTrend.reduce((sum, m) => sum + (m.incomes - m.expenses), 0).toLocaleString("sr-RS")} RSD
               </span>
             </div>
