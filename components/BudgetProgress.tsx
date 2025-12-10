@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Wallet, TrendingUp, AlertCircle, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Wallet, TrendingUp, AlertCircle, Plus, Pencil, Trash2, ChevronDown, ChevronUp, Target, Calendar, CalendarRange } from 'lucide-react'
 import BudgetStatistics from './BudgetStatistics'
+import { getIcon } from '@/lib/iconMapping'
 
 interface Budget {
   id: string
@@ -184,23 +185,43 @@ export default function BudgetProgress({ onAddBudget, onEditBudget }: BudgetProg
                 <div className="flex items-center gap-3">
                   {budget.category ? (
                     <>
-                      <span className="text-2xl">{budget.category.icon}</span>
+                      {(() => {
+                        const IconComponent = getIcon(budget.category.icon)
+                        return (
+                          <div 
+                            className="w-10 h-10 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: '#2E2B44', color: budget.category.color }}
+                          >
+                            <IconComponent size={24} weight="duotone" />
+                          </div>
+                        )
+                      })()}
                       <div>
                         <h4 className="font-semibold text-white">
                           {budget.category.name}
                         </h4>
-                        <p className="text-xs text-gray-400">
-                          {budget.period === 'MONTHLY' ? 'Mesečno' : 'Godišnje'}
+                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                          {budget.period === 'MONTHLY' ? (
+                            <><Calendar className="w-3 h-3" /> Mesečno</>
+                          ) : (
+                            <><CalendarRange className="w-3 h-3" /> Godišnje</>
+                          )}
                         </p>
                       </div>
                     </>
                   ) : (
                     <>
-                      <Wallet className="w-6 h-6 text-gray-400" />
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#2E2B44' }}>
+                        <Target className="w-6 h-6 text-gray-400" />
+                      </div>
                       <div>
                         <h4 className="font-semibold text-white">Ukupan budžet</h4>
-                        <p className="text-xs text-gray-400">
-                          {budget.period === 'MONTHLY' ? 'Mesečno' : 'Godišnje'}
+                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                          {budget.period === 'MONTHLY' ? (
+                            <><Calendar className="w-3 h-3" /> Mesečno</>
+                          ) : (
+                            <><CalendarRange className="w-3 h-3" /> Godišnje</>
+                          )}
                         </p>
                       </div>
                     </>

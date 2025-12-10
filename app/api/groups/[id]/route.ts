@@ -207,6 +207,17 @@ export async function DELETE(
       );
     }
 
+    // Before deleting, reset activeGroupId for all users who have this group active
+    await prisma.user.updateMany({
+      where: {
+        activeGroupId: id
+      },
+      data: {
+        activeGroupId: null
+      }
+    })
+    console.log(`✅ Reset activeGroupId for users with group ${id}`)
+
     await prisma.group.delete({
       where: { id },
     });

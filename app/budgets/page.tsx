@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, TrendingUp } from 'lucide-react'
 import BudgetProgress from '@/components/BudgetProgress'
 import BudgetModal from '@/components/BudgetModal'
+import ModernHelpButton from '@/components/ModernHelpButton'
 
 export default function BudgetsPage() {
   const router = useRouter()
@@ -53,22 +54,25 @@ export default function BudgetsPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <TrendingUp className="w-8 h-8 text-blue-400" />
-              Budžeti
-            </h1>
-            <p className="text-gray-400 mt-1">
-              Pratite mesečnu potrošnju po kategorijama
-            </p>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                <TrendingUp className="w-8 h-8 text-blue-400" />
+                Budžeti
+              </h1>
+              <p className="text-gray-400 mt-1">
+                Pratite mesečnu potrošnju po kategorijama
+              </p>
+            </div>
           </div>
+          <ModernHelpButton page="budgets" />
         </div>
 
         {/* Budget Progress */}

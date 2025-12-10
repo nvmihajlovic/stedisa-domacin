@@ -118,6 +118,27 @@ export default function DashboardClient({ user }: { user: User }) {
   const [expensesByCategory, setExpensesByCategory] = useState<any[]>([])
   const [incomesByCategory, setIncomesByCategory] = useState<any[]>([])
   const [budgets, setBudgets] = useState<any[]>([])
+  
+  // Tooltip states for pie charts
+  const [expenseTooltip, setExpenseTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    category: string;
+    amount: number;
+    percentage: number;
+    color: string;
+  } | null>(null)
+  
+  const [incomeTooltip, setIncomeTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    category: string;
+    amount: number;
+    percentage: number;
+    color: string;
+  } | null>(null)
 
   // Format number with thousand separators
   const formatNumber = (num: number) => {
@@ -252,40 +273,65 @@ export default function DashboardClient({ user }: { user: User }) {
     
     fetchAIInsightsCount()
     
-    // Check if AI assistant is enabled
-    const aiEnabled = localStorage.getItem("ai_assistant_enabled") !== "false"
-    setAiAssistantEnabled(aiEnabled)
+    // Check if AI assistant is enabled - fetch from API first
+    const fetchAIAssistantStatus = async () => {
+      try {
+        const response = await fetch("/api/profile/settings")
+        if (response.ok) {
+          const data = await response.json()
+          const aiEnabled = data.aiAssistantEnabled ?? true
+          console.log("🤖 Dashboard init - AI Assistant from API:", aiEnabled)
+          setAiAssistantEnabled(aiEnabled)
+          // Sync localStorage
+          localStorage.setItem("ai_assistant_enabled", aiEnabled.toString())
+        } else {
+          // Fallback to localStorage
+          const aiEnabled = localStorage.getItem("ai_assistant_enabled") !== "false"
+          console.log("🤖 Dashboard init - AI Assistant from localStorage (fallback):", aiEnabled)
+          setAiAssistantEnabled(aiEnabled)
+        }
+      } catch (error) {
+        console.error("Failed to fetch AI assistant status:", error)
+        // Fallback to localStorage
+        const aiEnabled = localStorage.getItem("ai_assistant_enabled") !== "false"
+        console.log("🤖 Dashboard init - AI Assistant from localStorage (error fallback):", aiEnabled)
+        setAiAssistantEnabled(aiEnabled)
+      }
+    }
     
-    // Check onboarding status
+    fetchAIAssistantStatus()
+    
+    // Check onboarding status and handle AI popup
     const onboardingCompleted = localStorage.getItem("onboarding_completed")
     
-    // Show AI popup on login (only if not first time - onboarding takes priority)
-    // AND only show once per session OR every 5 days
-    // AND only if AI assistant is enabled
-    const aiPopupShownThisSession = sessionStorage.getItem("ai_popup_shown")
-    const lastShownTimestamp = localStorage.getItem("ai_popup_last_shown")
-    const now = Date.now()
-    const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000 // 5 days in milliseconds
-    
-    // Show if: enabled AND (not shown this session OR 5+ days since last show)
-    const shouldShowPopup = aiEnabled && onboardingCompleted && (
-      !aiPopupShownThisSession || 
-      !lastShownTimestamp || 
-      (now - parseInt(lastShownTimestamp)) >= fiveDaysInMs
-    )
-    
-    if (shouldShowPopup) {
+    if (onboardingCompleted) {
+      // Check AI popup status after a short delay to ensure state is set
       setTimeout(() => {
-        setAiAutoShow(true)
-        setShowAIPopup(true)
-        sessionStorage.setItem("ai_popup_shown", "true")
-        localStorage.setItem("ai_popup_last_shown", now.toString())
-      }, 1000)
+        const aiPopupShownThisSession = sessionStorage.getItem("ai_popup_shown")
+        const lastShownTimestamp = localStorage.getItem("ai_popup_last_shown")
+        const now = Date.now()
+        const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000 // 5 days in milliseconds
+        
+        // Show if: enabled AND (not shown this session OR 5+ days since last show)
+        const shouldShowPopup = aiAssistantEnabled && (
+          !aiPopupShownThisSession || 
+          !lastShownTimestamp || 
+          (now - parseInt(lastShownTimestamp)) >= fiveDaysInMs
+        )
+        
+        if (shouldShowPopup) {
+          setAiAutoShow(true)
+          setShowAIPopup(true)
+          sessionStorage.setItem("ai_popup_shown", "true")
+          localStorage.setItem("ai_popup_last_shown", now.toString())
+        }
+      }, 1500)
     }
     
     // Listen for changes to AI assistant setting
     const handleStorageChange = () => {
       const aiEnabled = localStorage.getItem("ai_assistant_enabled") !== "false"
+      console.log("🔄 Storage changed - AI Assistant enabled:", aiEnabled, "localStorage value:", localStorage.getItem("ai_assistant_enabled"))
       setAiAssistantEnabled(aiEnabled)
     }
     
@@ -357,7 +403,8 @@ export default function DashboardClient({ user }: { user: User }) {
         if (!categoryTotals[catName]) {
           categoryTotals[catName] = { total: 0, color: catColor }
         }
-        categoryTotals[catName].total += exp.amount
+        // Koristi konvertovanu vrednost za tačno učešće u pie chartu
+        categoryTotals[catName].total += (exp.amountInRSD || exp.amount)
       })
       
       const categoryArray = Object.entries(categoryTotals)
@@ -380,7 +427,8 @@ export default function DashboardClient({ user }: { user: User }) {
         if (!categoryTotals[catName]) {
           categoryTotals[catName] = { total: 0, color: catColor }
         }
-        categoryTotals[catName].total += inc.amount
+        // Koristi konvertovanu vrednost za tačno učešće u pie chartu
+        categoryTotals[catName].total += (inc.amountInRSD || inc.amount)
       })
       
       const categoryArray = Object.entries(categoryTotals)
@@ -1125,7 +1173,7 @@ export default function DashboardClient({ user }: { user: User }) {
                 
                 {expensesByCategory.length > 0 && (
                   <div className="flex items-center justify-center gap-3 p-3 rounded-xl mt-4 lg:mt-2 h-[160px] lg:h-[190px]" style={{background: 'rgba(0, 0, 0, 0.25)', border: '1px solid rgba(255, 255, 255, 0.06)'}}>
-                    <div className="relative w-[180px] h-[180px] lg:w-[130px] lg:h-[130px]" style={{flexShrink: 0}}>
+                    <div className="relative w-[180px] h-[180px] lg:w-[130px] lg:h-[130px]" style={{flexShrink: 0, position: 'relative'}}>
                       <svg width="100%" height="100%" viewBox="0 0 100 100" className="drop-shadow-sm">
                         <defs>
                           <linearGradient id="segmentShine" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -1182,6 +1230,61 @@ export default function DashboardClient({ user }: { user: User }) {
                         <g transform="rotate(-90 50 50)">
                           {(() => {
                             const total = expensesByCategory.reduce((sum, cat) => sum + cat.total, 0);
+                            
+                            // Specijalan slučaj: samo jedna kategorija - prikaži puni krug u boji kategorije
+                            if (expensesByCategory.length === 1) {
+                              const cat = expensesByCategory[0];
+                              const gradient = 'url(#expenseGradient1)';
+                              return (
+                                <g>
+                                  {/* Donja senka */}
+                                  <circle 
+                                    cx={50 + 1.5} 
+                                    cy={50 + 1.5} 
+                                    r="45" 
+                                    fill="rgba(0,0,0,0.25)"
+                                    opacity="0.6"
+                                  />
+                                  {/* Glavni krug */}
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill={gradient}
+                                    className="hover:opacity-95 transition-all"
+                                    style={{
+                                      filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.55))'
+                                    }}
+                                  />
+                                  {/* Inner shadow */}
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="rgba(0,0,0,0.15)"
+                                  />
+                                  {/* Highlight */}
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="url(#segmentShine)"
+                                    opacity="0.18"
+                                  />
+                                  {/* Outline */}
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="none"
+                                    stroke="rgba(255, 255, 255, 0.06)"
+                                    strokeWidth="1"
+                                  />
+                                </g>
+                              );
+                            }
+                            
+                            // Više kategorija - prikaži segmente
                             let currentAngle = 0;
                             const premiumGradients = ['url(#expenseGradient1)', 'url(#expenseGradient2)', 'url(#expenseGradient3)', 'url(#expenseGradient4)', 'url(#expenseGradient5)', 'url(#expenseGradient6)'];
                             return expensesByCategory.map((cat, idx) => {
@@ -1198,12 +1301,45 @@ export default function DashboardClient({ user }: { user: User }) {
                               const y2 = 50 + 45 * Math.sin(endRad);
                               const largeArc = angle > 180 ? 1 : 0;
                               const gradient = premiumGradients[idx % premiumGradients.length];
+                              const solidColors = ['#FF6B9D', '#CE93D8', '#FFB74D', '#4FC3F7', '#F06292', '#9575CD'];
+                              const solidColor = solidColors[idx % solidColors.length];
                               
                               // 3D layering efekat - svaki segment je malo "iznad" prethodnog
                               const shadowIntensity = 0.4 - (idx * 0.08); // jača senka za gornje segmente
                               const offsetX = idx * 0.15; // blagi horizontalni offset
                               const offsetY = idx * 0.15; // blagi vertikalni offset
                               const depthOffset = 1.5; // offset za dubinu
+                              
+                              // Funkcija za prikaz tooltip-a
+                              const handleMouseEnter = (e: React.MouseEvent<SVGPathElement>) => {
+                                const svgRect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                                if (svgRect) {
+                                  setExpenseTooltip({
+                                    visible: true,
+                                    x: e.clientX - svgRect.left,
+                                    y: e.clientY - svgRect.top,
+                                    category: cat.name,
+                                    amount: cat.total,
+                                    percentage: percentage,
+                                    color: solidColor
+                                  });
+                                }
+                              };
+
+                              const handleMouseMove = (e: React.MouseEvent<SVGPathElement>) => {
+                                const svgRect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                                if (svgRect && expenseTooltip) {
+                                  setExpenseTooltip({
+                                    ...expenseTooltip,
+                                    x: e.clientX - svgRect.left,
+                                    y: e.clientY - svgRect.top
+                                  });
+                                }
+                              };
+
+                              const handleMouseLeave = () => {
+                                setExpenseTooltip(null);
+                              };
                               
                               return (
                                 <g key={idx} transform={`translate(${offsetX}, ${offsetY})`}>
@@ -1225,11 +1361,14 @@ export default function DashboardClient({ user }: { user: User }) {
                                   <path
                                     d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
                                     fill={gradient}
-                                    className="hover:opacity-95 transition-all"
+                                    className="hover:opacity-95 transition-all cursor-pointer"
                                     style={{
                                       filter: `drop-shadow(0 ${2 + idx * 0.5}px ${5 + idx * 1.5}px rgba(0,0,0,${shadowIntensity + 0.15}))`,
                                       transform: `translateZ(${idx * 2}px)`
                                     }}
+                                    onMouseEnter={handleMouseEnter}
+                                    onMouseMove={handleMouseMove}
+                                    onMouseLeave={handleMouseLeave}
                                   />
                                   
                                   {/* Inner shadow za još veću dubinu */}
@@ -1277,6 +1416,56 @@ export default function DashboardClient({ user }: { user: User }) {
                           kat.
                         </text>
                       </svg>
+                      
+                      {/* Tooltip za expense pie chart */}
+                      {expenseTooltip && (
+                        <div 
+                          className="absolute pointer-events-none z-50"
+                          style={{
+                            left: `${expenseTooltip.x + 10}px`,
+                            top: `${expenseTooltip.y - 60}px`,
+                            transform: 'translateX(-50%)'
+                          }}
+                        >
+                          <div 
+                            className="px-3 py-2 rounded-lg shadow-2xl whitespace-nowrap"
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(28, 26, 46, 0.98) 0%, rgba(20, 18, 38, 0.98) 100%)',
+                              border: '1px solid rgba(228, 88, 214, 0.3)',
+                              backdropFilter: 'blur(10px)',
+                              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(228, 88, 214, 0.15)'
+                            }}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <div 
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{background: expenseTooltip.color}}
+                              />
+                              <div className="text-xs font-bold" style={{color: '#E8D9FF'}}>
+                                {expenseTooltip.category}
+                              </div>
+                            </div>
+                            <div className="text-sm font-bold" style={{color: '#FFFFFF'}}>
+                              {expenseTooltip.amount.toLocaleString('sr-RS')} RSD
+                            </div>
+                            <div className="text-xs font-semibold mt-0.5" style={{color: expenseTooltip.color}}>
+                              {expenseTooltip.percentage.toFixed(1)}% ukupnih troškova
+                            </div>
+                          </div>
+                          {/* Tooltip arrow */}
+                          <div 
+                            className="absolute left-1/2 -translate-x-1/2"
+                            style={{
+                              bottom: '-6px',
+                              width: 0,
+                              height: 0,
+                              borderLeft: '6px solid transparent',
+                              borderRight: '6px solid transparent',
+                              borderTop: '6px solid rgba(28, 26, 46, 0.98)'
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 space-y-1.5 overflow-hidden flex flex-col justify-center">
                       {expensesByCategory.slice(0, 4).map((cat, idx) => {
@@ -1310,6 +1499,7 @@ export default function DashboardClient({ user }: { user: User }) {
                         amountInRSD: expense.amountInRSD 
                       })
                       const IconComponent = getIcon(expense.category?.icon);
+                      const categoryColor = expense.category?.color || '#FFB3E6';
                       return (
                         <div 
                         key={expense.id}
@@ -1318,8 +1508,8 @@ export default function DashboardClient({ user }: { user: User }) {
                         style={{border: '1px solid rgba(255, 255, 255, 0.04)'}}
                       >
                         <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={(e) => { e.stopPropagation(); router.push('/expenses'); }}>
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: 'rgba(255, 179, 230, 0.15)', border: '1px solid rgba(255, 179, 230, 0.2)', boxShadow: '0 0 15px rgba(255, 179, 230, 0.2)'}}>
-                            <IconComponent size={18} weight="duotone" style={{color: '#FFB3E6'}} />
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: `${categoryColor}26`, border: `1px solid ${categoryColor}33`, boxShadow: `0 0 15px ${categoryColor}33`}}>
+                            <IconComponent size={18} weight="duotone" style={{color: categoryColor}} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -1418,7 +1608,7 @@ export default function DashboardClient({ user }: { user: User }) {
                 
                 {incomesByCategory.length > 0 && (
                   <div className="flex items-center justify-center gap-3 p-3 rounded-xl mt-4 lg:mt-2 h-[160px] lg:h-[190px]" style={{background: 'rgba(0, 0, 0, 0.25)', border: '1px solid rgba(255, 255, 255, 0.06)'}}>
-                    <div className="relative w-[180px] h-[180px] lg:w-[130px] lg:h-[130px]" style={{flexShrink: 0}}>
+                    <div className="relative w-[180px] h-[180px] lg:w-[130px] lg:h-[130px]" style={{flexShrink: 0, position: 'relative'}}>
                       <svg width="100%" height="100%" viewBox="0 0 100 100" className="drop-shadow-sm">
                         <defs>
                           <linearGradient id="segmentShineIncome" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -1475,6 +1665,61 @@ export default function DashboardClient({ user }: { user: User }) {
                         <g transform="rotate(-90 50 50)">
                           {(() => {
                             const total = incomesByCategory.reduce((sum, cat) => sum + cat.total, 0);
+                            
+                            // Specijalan slučaj: samo jedna kategorija - prikaži puni krug u boji kategorije
+                            if (incomesByCategory.length === 1) {
+                              const cat = incomesByCategory[0];
+                              const gradient = 'url(#incomeGradient1)';
+                              return (
+                                <g>
+                                  {/* Donja senka */}
+                                  <circle 
+                                    cx={50 + 1.5} 
+                                    cy={50 + 1.5} 
+                                    r="45" 
+                                    fill="rgba(0,0,0,0.25)"
+                                    opacity="0.6"
+                                  />
+                                  {/* Glavni krug */}
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill={gradient}
+                                    className="hover:opacity-95 transition-all"
+                                    style={{
+                                      filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.55))'
+                                    }}
+                                  />
+                                  {/* Inner shadow */}
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="rgba(0,0,0,0.15)"
+                                  />
+                                  {/* Highlight */}
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="url(#segmentShineIncome)"
+                                    opacity="0.18"
+                                  />
+                                  {/* Outline */}
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="none"
+                                    stroke="rgba(255, 255, 255, 0.06)"
+                                    strokeWidth="1"
+                                  />
+                                </g>
+                              );
+                            }
+                            
+                            // Više kategorija - prikaži segmente
                             let currentAngle = 0;
                             const premiumGradients = ['url(#incomeGradient1)', 'url(#incomeGradient2)', 'url(#incomeGradient3)', 'url(#incomeGradient4)', 'url(#incomeGradient5)', 'url(#incomeGradient6)'];
                             return incomesByCategory.map((cat, idx) => {
@@ -1491,12 +1736,45 @@ export default function DashboardClient({ user }: { user: User }) {
                               const y2 = 50 + 45 * Math.sin(endRad);
                               const largeArc = angle > 180 ? 1 : 0;
                               const gradient = premiumGradients[idx % premiumGradients.length];
+                              const solidColors = ['#4DD0E1', '#81C784', '#4DB6AC', '#AED581', '#4FC3F7', '#64DD17'];
+                              const solidColor = solidColors[idx % solidColors.length];
                               
                               // 3D layering efekat - svaki segment je malo "iznad" prethodnog
                               const shadowIntensity = 0.4 - (idx * 0.08); // jača senka za gornje segmente
                               const offsetX = idx * 0.15; // blagi horizontalni offset
                               const offsetY = idx * 0.15; // blagi vertikalni offset
                               const depthOffset = 1.5; // offset za dubinu
+                              
+                              // Funkcija za prikaz tooltip-a
+                              const handleMouseEnterIncome = (e: React.MouseEvent<SVGPathElement>) => {
+                                const svgRect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                                if (svgRect) {
+                                  setIncomeTooltip({
+                                    visible: true,
+                                    x: e.clientX - svgRect.left,
+                                    y: e.clientY - svgRect.top,
+                                    category: cat.name,
+                                    amount: cat.total,
+                                    percentage: percentage,
+                                    color: solidColor
+                                  });
+                                }
+                              };
+
+                              const handleMouseMoveIncome = (e: React.MouseEvent<SVGPathElement>) => {
+                                const svgRect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                                if (svgRect && incomeTooltip) {
+                                  setIncomeTooltip({
+                                    ...incomeTooltip,
+                                    x: e.clientX - svgRect.left,
+                                    y: e.clientY - svgRect.top
+                                  });
+                                }
+                              };
+
+                              const handleMouseLeaveIncome = () => {
+                                setIncomeTooltip(null);
+                              };
                               
                               return (
                                 <g key={idx} transform={`translate(${offsetX}, ${offsetY})`}>
@@ -1518,11 +1796,14 @@ export default function DashboardClient({ user }: { user: User }) {
                                   <path
                                     d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`}
                                     fill={gradient}
-                                    className="hover:opacity-95 transition-all"
+                                    className="hover:opacity-95 transition-all cursor-pointer"
                                     style={{
                                       filter: `drop-shadow(0 ${2 + idx * 0.5}px ${5 + idx * 1.5}px rgba(0,0,0,${shadowIntensity + 0.15}))`,
                                       transform: `translateZ(${idx * 2}px)`
                                     }}
+                                    onMouseEnter={handleMouseEnterIncome}
+                                    onMouseMove={handleMouseMoveIncome}
+                                    onMouseLeave={handleMouseLeaveIncome}
                                   />
                                   
                                   {/* Inner shadow za još veću dubinu */}
@@ -1570,6 +1851,56 @@ export default function DashboardClient({ user }: { user: User }) {
                           kat.
                         </text>
                       </svg>
+                      
+                      {/* Tooltip za income pie chart */}
+                      {incomeTooltip && (
+                        <div 
+                          className="absolute pointer-events-none z-50"
+                          style={{
+                            left: `${incomeTooltip.x + 10}px`,
+                            top: `${incomeTooltip.y - 60}px`,
+                            transform: 'translateX(-50%)'
+                          }}
+                        >
+                          <div 
+                            className="px-3 py-2 rounded-lg shadow-2xl whitespace-nowrap"
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(28, 26, 46, 0.98) 0%, rgba(20, 18, 38, 0.98) 100%)',
+                              border: '1px solid rgba(100, 243, 194, 0.3)',
+                              backdropFilter: 'blur(10px)',
+                              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(100, 243, 194, 0.15)'
+                            }}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <div 
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{background: incomeTooltip.color}}
+                              />
+                              <div className="text-xs font-bold" style={{color: '#D3FFF2'}}>
+                                {incomeTooltip.category}
+                              </div>
+                            </div>
+                            <div className="text-sm font-bold" style={{color: '#FFFFFF'}}>
+                              {incomeTooltip.amount.toLocaleString('sr-RS')} RSD
+                            </div>
+                            <div className="text-xs font-semibold mt-0.5" style={{color: incomeTooltip.color}}>
+                              {incomeTooltip.percentage.toFixed(1)}% ukupnih prihoda
+                            </div>
+                          </div>
+                          {/* Tooltip arrow */}
+                          <div 
+                            className="absolute left-1/2 -translate-x-1/2"
+                            style={{
+                              bottom: '-6px',
+                              width: 0,
+                              height: 0,
+                              borderLeft: '6px solid transparent',
+                              borderRight: '6px solid transparent',
+                              borderTop: '6px solid rgba(28, 26, 46, 0.98)'
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 space-y-1.5 overflow-hidden flex flex-col justify-center">
                       {incomesByCategory.slice(0, 4).map((cat, idx) => {
@@ -1690,28 +2021,32 @@ export default function DashboardClient({ user }: { user: User }) {
 
           <div className="p-6 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_0_35px_-10px_rgba(0,0,0,0.45)]" data-tour="quick-access">
             <h2 className="text-xl font-semibold mb-6" style={{fontFamily: '"Inter", sans-serif', color: '#FFFFFF'}}>Brzi pristup</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
-              <button onClick={() => router.push('/statistics')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 md:gap-4">
+              <button onClick={() => router.push('/statistics')} className="rounded-2xl p-6 hover:scale-105 transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10 cursor-pointer hover:bg-white/10 hover:border-[#8A63D2]/30 hover:shadow-[0_0_20px_rgba(138,99,210,0.25)]">
                 <ChartLine size={24} weight="bold" style={{color: '#8A63D2', filter: 'drop-shadow(0 0 1px rgba(138, 99, 210, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Statistika</div>
               </button>
-              <button onClick={() => router.push('/budgets')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
+              <button onClick={() => router.push('/budgets')} className="rounded-2xl p-6 hover:scale-105 transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10 cursor-pointer hover:bg-white/10 hover:border-[#E6C14A]/30 hover:shadow-[0_0_20px_rgba(230,193,74,0.25)]">
                 <Wallet size={24} weight="bold" style={{color: '#E6C14A', filter: 'drop-shadow(0 0 1px rgba(230, 193, 74, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Budžeti</div>
               </button>
-              <button onClick={() => router.push('/groups')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
+              <button onClick={() => router.push('/savings')} className="rounded-2xl p-6 hover:scale-105 transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10 cursor-pointer hover:bg-white/10 hover:border-[#FFD700]/30 hover:shadow-[0_0_20px_rgba(255,215,0,0.25)]">
+                <CurrencyCircleDollar size={24} weight="bold" style={{color: '#FFD700', filter: 'drop-shadow(0 0 1px rgba(255, 215, 0, 0.25))'}} className="mx-auto mb-4" />
+                <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Štednja</div>
+              </button>
+              <button onClick={() => router.push('/groups')} className="rounded-2xl p-6 hover:scale-105 transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10 cursor-pointer hover:bg-white/10 hover:border-[#4EC8E4]/30 hover:shadow-[0_0_20px_rgba(78,200,228,0.25)]">
                 <Users size={24} weight="bold" style={{color: '#4EC8E4', filter: 'drop-shadow(0 0 1px rgba(78, 200, 228, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Grupe</div>
               </button>
-              <button onClick={() => router.push('/settlements')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
+              <button onClick={() => router.push('/settlements')} className="rounded-2xl p-6 hover:scale-105 transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10 cursor-pointer hover:bg-white/10 hover:border-[#1FBFA4]/30 hover:shadow-[0_0_20px_rgba(31,191,164,0.25)]">
                 <CurrencyCircleDollar size={24} weight="bold" style={{color: '#1FBFA4', filter: 'drop-shadow(0 0 1px rgba(31, 191, 164, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Poravnanja</div>
               </button>
-              <button onClick={() => router.push('/categories')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
+              <button onClick={() => router.push('/categories')} className="rounded-2xl p-6 hover:scale-105 transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10 cursor-pointer hover:bg-white/10 hover:border-[#1FBFA4]/30 hover:shadow-[0_0_20px_rgba(31,191,164,0.25)]">
                 <Tag size={24} weight="bold" style={{color: '#1FBFA4', filter: 'drop-shadow(0 0 1px rgba(31, 191, 164, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Kategorije</div>
               </button>
-              <button onClick={() => router.push('/profile')} className="rounded-2xl p-6 hover:scale-[1.02] transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10">
+              <button onClick={() => router.push('/profile')} className="rounded-2xl p-6 hover:scale-105 transition-all duration-300 bg-white/5 backdrop-blur-xl border border-white/10 cursor-pointer hover:bg-white/10 hover:border-[#C339B5]/30 hover:shadow-[0_0_20px_rgba(195,57,181,0.25)]">
                 <Gear size={24} weight="bold" style={{color: '#C339B5', filter: 'drop-shadow(0 0 1px rgba(195, 57, 181, 0.15))'}} className="mx-auto mb-4" />
                 <div className="text-sm font-semibold" style={{color: 'rgba(255,255,255,0.75)', fontFamily: '"Inter", sans-serif'}}>Profil</div>
               </button>

@@ -90,12 +90,17 @@ export default function ExpensesPage() {
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurringType, setRecurringType] = useState("monthly")
   const [nextRecurringDate, setNextRecurringDate] = useState(new Date().toISOString().split('T')[0])
+  const [dayOfMonth, setDayOfMonth] = useState<number>(new Date().getDate())
   
   // Group split fields
   const [userGroups, setUserGroups] = useState<Group[]>([])
   const [splitWithGroup, setSplitWithGroup] = useState(false)
   const [selectedGroupId, setSelectedGroupId] = useState("")
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([])
+  
+  // OCR suggestion tracking (for learning)
+  const [ocrSuggestedCategoryId, setOcrSuggestedCategoryId] = useState<string | null>(null)
+  const [ocrVendorName, setOcrVendorName] = useState<string | null>(null)
   
   // Bulk operations state
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set())
@@ -194,6 +199,7 @@ export default function ExpensesPage() {
         isRecurring,
         recurringType: isRecurring ? recurringType : null,
         nextRecurringDate: isRecurring ? nextRecurringDate : null,
+        dayOfMonth: isRecurring ? dayOfMonth : null,
         splitWithGroup,
         groupId: splitWithGroup ? selectedGroupId : null,
         participants: splitWithGroup ? selectedParticipants : null
@@ -201,6 +207,26 @@ export default function ExpensesPage() {
     })
 
     if (res.ok) {
+      // Learn from category choice if OCR suggested something
+      if (ocrVendorName && categoryId) {
+        const wasCorrect = categoryId === ocrSuggestedCategoryId;
+        
+        try {
+          await fetch('/api/expenses/suggest-category', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              vendorName: ocrVendorName,
+              categoryId: categoryId,
+              wasCorrectSuggestion: wasCorrect,
+            }),
+          });
+          console.log(`🎓 Learned: ${ocrVendorName} → category (${wasCorrect ? 'correct' : 'corrected'})`);
+        } catch (error) {
+          console.error('Failed to record learning:', error);
+        }
+      }
+      
       setShowModal(false)
       setAmount("")
       setDescription("")
@@ -214,6 +240,8 @@ export default function ExpensesPage() {
       setSplitWithGroup(false)
       setSelectedGroupId("")
       setSelectedParticipants([])
+      setOcrSuggestedCategoryId(null)
+      setOcrVendorName(null)
       showToast("Trošak uspešno dodat", "success")
       fetchExpenses()
     }
@@ -867,6 +895,7 @@ export default function ExpensesPage() {
                   <div className="flex flex-col gap-3 lg:gap-4 pb-4">
                     {filteredExpenses.map((expense) => {
                 const IconComponent = getIcon(expense.category.icon);
+                const categoryColor = expense.category.color || '#FFB3E6';
                 return (
                   <div 
                     key={expense.id}
@@ -884,8 +913,8 @@ export default function ExpensesPage() {
                         style={{accentColor: '#9F70FF'}}
                       />
                       
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: 'rgba(255, 179, 230, 0.15)', border: '1px solid rgba(255, 179, 230, 0.2)', boxShadow: '0 0 15px rgba(255, 179, 230, 0.2)'}}>
-                        <IconComponent size={18} weight="duotone" style={{color: '#FFB3E6'}} />
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: `${categoryColor}26`, border: `1px solid ${categoryColor}33`, boxShadow: `0 0 15px ${categoryColor}33`}}>
+                        <IconComponent size={18} weight="duotone" style={{color: categoryColor}} />
                       </div>
                       <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -1017,6 +1046,15 @@ export default function ExpensesPage() {
                       if (data.categoryId) {
                         console.log("Setting categoryId:", data.categoryId);
                         setCategoryId(data.categoryId);
+                        // Track OCR suggestion for learning
+                        setOcrSuggestedCategoryId(data.categoryId);
+                      }
+                      // @ts-ignore - vendorName can be passed from OCR
+                      if (data.vendorName) {
+                        // @ts-ignore
+                        setOcrVendorName(data.vendorName);
+                        // @ts-ignore
+                        console.log("Tracked vendor for learning:", data.vendorName);
                       }
                     }}
                   />
@@ -1122,7 +1160,7 @@ export default function ExpensesPage() {
                   </div>
 
                   {isRecurring && (
-                    <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-4 mt-4">
                       <div>
                         <label className="block text-sm font-medium mb-2" style={{color: '#A5A4B6'}}>Vrsta ponavljanja</label>
                         <select
@@ -1132,20 +1170,46 @@ export default function ExpensesPage() {
                           style={{background: '#1C1A2E', border: '1px solid #2E2B44', color: '#fff'}}
                         >
                           <option value="monthly">Mesečno</option>
-                          <option value="weekly">Nedeljno</option>
+                          <option value="quarterly">Kvartalno (svakih 3 meseca)</option>
+                          <option value="semi-annually">Polugodišnje (svakih 6 meseci)</option>
                           <option value="yearly">Godišnje</option>
                         </select>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium mb-2" style={{color: '#A5A4B6'}}>Sledeće ponavljanje</label>
-                        <input
-                          type="date"
-                          value={nextRecurringDate}
-                          onChange={(e) => setNextRecurringDate(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl outline-none focus:border-[#9F70FF] transition-colors"
-                          style={{background: '#1C1A2E', border: '1px solid #2E2B44', color: '#fff'}}
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2" style={{color: '#A5A4B6'}}>Dan u mesecu</label>
+                          <select
+                            value={dayOfMonth}
+                            onChange={(e) => setDayOfMonth(Number(e.target.value))}
+                            className="w-full px-4 py-3 rounded-xl outline-none focus:border-[#9F70FF] transition-colors"
+                            style={{background: '#1C1A2E', border: '1px solid #2E2B44', color: '#fff'}}
+                          >
+                            {Array.from({length: 28}, (_, i) => i + 1).map(day => (
+                              <option key={day} value={day}>{day}. dan u mesecu</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2" style={{color: '#A5A4B6'}}>Prvo ponavljanje</label>
+                          <input
+                            type="date"
+                            value={nextRecurringDate}
+                            onChange={(e) => setNextRecurringDate(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl outline-none focus:border-[#9F70FF] transition-colors"
+                            style={{background: '#1C1A2E', border: '1px solid #2E2B44', color: '#fff'}}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-xs p-3 rounded-lg" style={{background: 'rgba(159, 112, 255, 0.1)', color: '#B794FF'}}>
+                        💡 Trošak će se automatski kreirati svakog{' '}
+                        <strong>{dayOfMonth}.</strong> dana{' '}
+                        {recurringType === 'monthly' && 'svakog meseca'}
+                        {recurringType === 'quarterly' && 'na svaka 3 meseca'}
+                        {recurringType === 'semi-annually' && 'na svakih 6 meseci'}
+                        {recurringType === 'yearly' && 'jednom godišnje'}
                       </div>
                     </div>
                   )}

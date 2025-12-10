@@ -20,7 +20,7 @@ export function suggestCategoryFromContext(text: string, vendor?: string): strin
   const lowerText = text.toLowerCase()
   const lowerVendor = vendor?.toLowerCase() || ''
   
-  // Režije (Utilities)
+  // Stanovanje i komunalije (Utilities & Housing)
   if (
     /(?:електропривреда|eps|struja|el\. energija|električna energija|за исплату)/i.test(text) ||
     /(?:srbijagas|gas|grejanje)/i.test(text) ||
@@ -28,7 +28,7 @@ export function suggestCategoryFromContext(text: string, vendor?: string): strin
     /(?:yettel|vip mobile|mts|telenor|telekom|mobile)/i.test(text) ||
     /(?:sbb|супернова|supernova|tv|internet|kablovska)/i.test(text)
   ) {
-    return 'Režije'
+    return 'Stanovanje i komunalije'
   }
   
   // Supermarket
@@ -100,16 +100,20 @@ export function suggestCategoryFromContext(text: string, vendor?: string): strin
  * Extract amount from OCR text
  * Handles formats: 1.234,56 | 1234.56 | 1 234,56 RSD | TOTAL: 5000
  * Improved for Serbian receipts (EPS, stores, etc.)
+ * UPDATED: 2025-12-10 - Added EPS "В ЗА УПЛАТУ" pattern for correct total amount
  */
 export function extractAmount(text: string): { amount: number; confidence: number } | null {
   const amountPatterns = [
-    // Priority 1: "Ukupno za uplatu/naplatu" - NAJČEŠĆI na računima
+    // Priority 1: EPS račun - opcija "В" (V ćirilično) = ukupno za uplatu (A + Б)
+    /[ВV]\s+(?:ЗА\s+УПЛАТУ|за\s+уплату|ZA\s+UPLATU)[\s\S]{0,100}?(\d{1,2}[.,]\d{3}[.,]\d{2})/i,
+
+    // Priority 2: "Ukupno za uplatu/naplatu" - NAJČEŠĆI na računima
     /(?:ukupno\s+(?:za\s+)?(?:uplatu|naplatu)|укупно\s+(?:за\s+)?(?:уплату|наплату))[\s:]*(\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d{2})?)/i,
 
-    // Priority 2: "Za uplatu" variants (EPS i slični računi)
-    /(?:за\s+уплату|za\s+uplatu|за\s+исплату)[\s\S]{0,80}?(\d{1,2}[.,]\d{3}[.,]\d{2})\s*(?:дин|din|rsd)?/i,
+    // Priority 3: "Za uplatu" variants (EPS i slični računi) - SAMO ako nema oznake А/Б/В
+    /(?:^|[^АБВ\s])(?:за\s+уплату|za\s+uplatu|за\s+исплату)[\s\S]{0,80}?(\d{1,2}[.,]\d{3}[.,]\d{2})\s*(?:дин|din|rsd)?/im,
 
-    // Priority 3: "Ukupan iznos" / "Ukupno"
+    // Priority 4: "Ukupan iznos" / "Ukupno"
     /(?:ukupan\s+iznos|укупан\s+износ|ukupno\s+rsd|укупно\s+рсд)[\s:]*(\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d{2})?)/i,
 
     // Priority 4: "Total sa PDV" / "Ukupno sa PDV"
@@ -130,7 +134,11 @@ export function extractAmount(text: string): { amount: number; confidence: numbe
 
   const lines = text.split('\n')
   
-  // Try patterns in order - RETURN FIRST MATCH from ANY keyword pattern
+  // UPDATED LOGIC: Find ALL "ukupno" amounts and return the LARGEST one
+  // This handles EPS receipts where multiple totals exist (А, Б, В)
+  let allMatches: Array<{ amount: number; confidence: number; pattern: number; line: string }> = []
+  
+  // Try patterns in order - collect ALL matches
   for (let i = 0; i < amountPatterns.length; i++) {
     const pattern = amountPatterns[i]
     
@@ -156,12 +164,37 @@ export function extractAmount(text: string): { amount: number; confidence: numbe
         
         // Validate amount range (10 RSD to 10M RSD)
         if (!isNaN(amount) && amount >= 10 && amount < 10000000) {
-          const confidence = i < 5 ? 0.95 : i < 7 ? 0.90 : 0.85;
-          console.log(`✅ Found amount ${amount} RSD (pattern ${i + 1}: "${amountPatterns[i].source.substring(0, 40)}...", confidence ${confidence}) from line: "${line.trim()}"`);
-          return { amount, confidence }
+          // Pattern 1 (EPS В opcija) = highest confidence
+          // Patterns 2-5 = very high confidence
+          // Patterns 6-8 = high confidence
+          const confidence = i === 0 ? 0.98 : i < 5 ? 0.95 : i < 7 ? 0.90 : 0.85;
+          
+          allMatches.push({ amount, confidence, pattern: i + 1, line: line.trim() })
+          
+          // For high-priority patterns (1-4), if we find a match, stop looking at lower priority patterns
+          if (i < 4) {
+            break
+          }
         }
       }
     }
+    
+    // If we found matches in high-priority patterns, stop searching lower priority ones
+    if (allMatches.length > 0 && i < 4) {
+      break
+    }
+  }
+  
+  // If we found multiple matches, return the LARGEST amount
+  if (allMatches.length > 0) {
+    const largest = allMatches.reduce((max, current) => 
+      current.amount > max.amount ? current : max
+    )
+    console.log(`✅ Found amount ${largest.amount} RSD (pattern ${largest.pattern}, confidence ${largest.confidence}) from line: "${largest.line}"`);
+    if (allMatches.length > 1) {
+      console.log(`   📊 Found ${allMatches.length} total amounts, selected LARGEST: ${allMatches.map(m => m.amount).join(', ')}`);
+    }
+    return { amount: largest.amount, confidence: largest.confidence }
   }
 
   // Fallback: find well-formatted number (X.XXX,XX format only)

@@ -41,8 +41,8 @@ export default function StatsPage() {
     }
   }
 
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
-  const totalIncomes = incomes.reduce((sum, i) => sum + i.amount, 0)
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amountInRSD || e.amount), 0)
+  const totalIncomes = incomes.reduce((sum, i) => sum + (i.amountInRSD || i.amount), 0)
   const balance = totalIncomes - totalExpenses
 
   if (loading) {

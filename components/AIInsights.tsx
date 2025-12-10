@@ -15,6 +15,8 @@ import {
   MagnifyingGlass,
   ChartBar,
   Repeat,
+  Calendar,
+  ArrowsLeftRight,
   X,
   Brain,
   Lightning,
@@ -50,6 +52,27 @@ const iconMap: Record<string, any> = {
   Repeat,
 };
 
+interface QuickQuestion {
+  id: string;
+  question: string;
+  icon: any;
+  color: string;
+  minDataRequired?: 'expenses' | 'income' | 'both' | 'categories' | 'none';
+}
+
+const quickQuestions: QuickQuestion[] = [
+  { id: "monthly-spending", question: "Koliko trošim ovaj mesec?", icon: Coin, color: "#60A5FA", minDataRequired: 'expenses' },
+  { id: "top-category", question: "Gde najviše trošim?", icon: ChartBar, color: "#F59E0B", minDataRequired: 'categories' },
+  { id: "savings-potential", question: "Koliko mogu da uštedim?", icon: Target, color: "#10B981", minDataRequired: 'expenses' },
+  { id: "budget-status", question: "Status mojih budžeta?", icon: WarningCircle, color: "#EF4444", minDataRequired: 'none' },
+  { id: "monthly-trends", question: "Kakav je trend troškova?", icon: TrendUp, color: "#8B5CF6", minDataRequired: 'expenses' },
+  { id: "savings-progress", question: "Napredak ciljeva štednje?", icon: Trophy, color: "#EC4899", minDataRequired: 'none' },
+  { id: "weekly-spending", question: "Koliko sam potrošio ove nedelje?", icon: Calendar, color: "#3B82F6", minDataRequired: 'expenses' },
+  { id: "biggest-expenses", question: "Šta su moji najveći troškovi?", icon: MagnifyingGlass, color: "#F97316", minDataRequired: 'categories' },
+  { id: "income-vs-expenses", question: "Koliko zarađujem vs. trošim?", icon: ArrowsLeftRight, color: "#14B8A6", minDataRequired: 'both' },
+  { id: "recurring-expenses", question: "Da li imam ponavljajuće troškove?", icon: Repeat, color: "#A855F7", minDataRequired: 'categories' },
+];
+
 interface AIInsightsProps {
   isOpen: boolean;
   onClose: () => void;
@@ -61,6 +84,14 @@ export default function AIInsightsPopup({ isOpen, onClose, autoShowOnLogin = fal
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [disableAutoClose, setDisableAutoClose] = useState(false);
+  const [showQuickQuestions, setShowQuickQuestions] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState<{ question: string; answer: string } | null>(null);
+  const [loadingAnswer, setLoadingAnswer] = useState(false);
+  const [financialData, setFinancialData] = useState<{
+    hasExpenses: boolean;
+    hasIncome: boolean;
+    hasCategories: boolean;
+  }>({ hasExpenses: false, hasIncome: false, hasCategories: false });
 
   useEffect(() => {
     if (isOpen) {
@@ -86,6 +117,23 @@ export default function AIInsightsPopup({ isOpen, onClose, autoShowOnLogin = fal
       if (response.ok) {
         const data = await response.json();
         setInsights(data.insights || []);
+        
+        // Fetch financial data to determine which questions to show
+        const [expensesRes, incomesRes] = await Promise.all([
+          fetch("/api/expenses"),
+          fetch("/api/incomes")
+        ]);
+        
+        if (expensesRes.ok && incomesRes.ok) {
+          const expenses = await expensesRes.json();
+          const incomes = await incomesRes.json();
+          
+          setFinancialData({
+            hasExpenses: expenses.expenses && expenses.expenses.length > 0,
+            hasIncome: incomes.incomes && incomes.incomes.length > 0,
+            hasCategories: expenses.expenses && expenses.expenses.length > 0
+          });
+        }
       }
     } catch (error) {
       console.error("Failed to fetch insights:", error);
@@ -93,6 +141,48 @@ export default function AIInsightsPopup({ isOpen, onClose, autoShowOnLogin = fal
       setLoading(false);
     }
   };
+
+  const handleQuickQuestion = async (questionId: string, questionText: string) => {
+    setLoadingAnswer(true);
+    setSelectedAnswer(null);
+    
+    try {
+      const response = await fetch("/api/financial-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: questionText, questionId: questionId }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedAnswer({ question: questionText, answer: data.answer });
+      }
+    } catch (error) {
+      console.error("Failed to get answer:", error);
+      setSelectedAnswer({ 
+        question: questionText, 
+        answer: "😔 Ups! Nešto je pošlo po zlu. Pokušaj ponovo." 
+      });
+    } finally {
+      setLoadingAnswer(false);
+    }
+  };
+
+  // Filter questions based on available data
+  const getVisibleQuestions = () => {
+    const { hasExpenses, hasIncome, hasCategories } = financialData;
+
+    return quickQuestions.filter(q => {
+      if (!q.minDataRequired || q.minDataRequired === 'none') return true;
+      if (q.minDataRequired === 'expenses') return hasExpenses;
+      if (q.minDataRequired === 'income') return hasIncome;
+      if (q.minDataRequired === 'both') return hasExpenses && hasIncome;
+      if (q.minDataRequired === 'categories') return hasCategories;
+      return true;
+    });
+  };
+
+  const visibleQuestions = getVisibleQuestions();
 
   if (!isOpen) return null;
 
@@ -223,7 +313,7 @@ export default function AIInsightsPopup({ isOpen, onClose, autoShowOnLogin = fal
               {displayedInsights.map((insight, index) => (
                 <div
                   key={insight.id}
-                  className="rounded-xl p-4 backdrop-blur-xl relative overflow-hidden group"
+                  className="rounded-xl p-4 backdrop-blur-xl relative overflow-hidden group cursor-pointer transition-all hover:scale-[1.02]"
                   style={{
                     background: insight.type === "success" 
                       ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)"
@@ -342,6 +432,162 @@ export default function AIInsightsPopup({ isOpen, onClose, autoShowOnLogin = fal
                   )}
                 </button>
               )}
+
+              {/* Quick Questions Section */}
+              <div className="mt-6 pt-6" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <button
+                  onClick={() => {
+                    setShowQuickQuestions(!showQuickQuestions);
+                    setSelectedAnswer(null);
+                    setDisableAutoClose(true);
+                  }}
+                  className="w-full flex items-center justify-between p-4 rounded-xl font-semibold transition-all hover:scale-[1.01]"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15))",
+                    border: "1px solid rgba(168, 85, 247, 0.3)",
+                    color: "#A855F7"
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <Brain size={20} weight="duotone" />
+                    Pitaj AI Asistenta
+                    {visibleQuestions.length < quickQuestions.length && (
+                      <span className="ml-2 px-2 py-0.5 text-xs rounded-full" style={{
+                        background: "rgba(168, 85, 247, 0.2)",
+                        border: "1px solid rgba(168, 85, 247, 0.4)",
+                        color: "#C4B5FD"
+                      }}>
+                        {visibleQuestions.length}/{quickQuestions.length}
+                      </span>
+                    )}
+                  </span>
+                  <Lightning size={18} weight="bold" style={{ 
+                    transform: showQuickQuestions ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.3s"
+                  }} />
+                </button>
+
+                {showQuickQuestions && (
+                  <div className="mt-4 space-y-3 animate-slideIn">
+                    {visibleQuestions.length === 0 ? (
+                      <div className="text-center py-8 px-4 rounded-xl" style={{
+                        background: "rgba(28, 26, 46, 0.6)",
+                        border: "2px solid rgba(168, 85, 247, 0.2)"
+                      }}>
+                        <Sparkle className="w-12 h-12 mx-auto mb-3" style={{ color: "#A855F7", opacity: 0.6 }} />
+                        <p className="text-white/70 text-sm mb-2">📊 AI pitanja se otključavaju kako dodaješ podatke!</p>
+                        <p className="text-white/50 text-xs">Dodaj prihode i troškove da vidiš personalizovane insajte 💡</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {visibleQuestions.map((q) => (
+                        <button
+                          key={q.id}
+                          onClick={() => handleQuickQuestion(q.id, q.question)}
+                          disabled={loadingAnswer}
+                          className="flex items-center gap-3 p-3.5 rounded-xl font-medium transition-all duration-200 hover:scale-[1.03] text-left group cursor-pointer disabled:cursor-wait disabled:opacity-60 disabled:hover:scale-100"
+                          style={{
+                            background: loadingAnswer ? "rgba(28, 26, 46, 0.4)" : "rgba(28, 26, 46, 0.6)",
+                            border: `2px solid ${loadingAnswer ? "rgba(255, 255, 255, 0.05)" : "rgba(255, 255, 255, 0.1)"}`,
+                            color: "#FFF",
+                            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!loadingAnswer) {
+                              e.currentTarget.style.background = `linear-gradient(135deg, rgba(28, 26, 46, 0.75) 0%, ${q.color}08 100%)`;
+                              e.currentTarget.style.borderColor = `${q.color}30`;
+                              e.currentTarget.style.boxShadow = `0 4px 16px ${q.color}20`;
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!loadingAnswer) {
+                              e.currentTarget.style.background = "rgba(28, 26, 46, 0.6)";
+                              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
+                            }
+                          }}
+                        >
+                          <div className="group-hover:scale-110 transition-transform" style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "10px",
+                            background: `${q.color}25`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                            border: `1px solid ${q.color}40`
+                          }}>
+                            <q.icon size={20} weight="duotone" style={{ color: q.color }} />
+                          </div>
+                          <span className="text-sm flex-1 group-hover:translate-x-1 transition-transform">{q.question}</span>
+                          <Lightning 
+                            size={16} 
+                            weight="fill" 
+                            className="opacity-0 group-hover:opacity-100 transition-opacity" 
+                            style={{ color: q.color }} 
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    )}
+
+                    {/* Answer Display */}
+                    {loadingAnswer && (
+                      <div className="p-4 rounded-xl" style={{
+                        background: "rgba(28, 26, 46, 0.6)",
+                        border: "1px solid rgba(255, 255, 255, 0.1)"
+                      }}>
+                        <div className="flex items-center gap-3">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#A855F7", animationDelay: "0ms" }} />
+                            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#A855F7", animationDelay: "150ms" }} />
+                            <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: "#A855F7", animationDelay: "300ms" }} />
+                          </div>
+                          <span className="text-sm" style={{ color: "rgba(255, 255, 255, 0.6)" }}>
+                            Analiziram podatke...
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedAnswer && !loadingAnswer && (
+                      <div className="p-4 rounded-xl space-y-3 animate-slideIn" style={{
+                        background: "rgba(28, 26, 46, 0.8)",
+                        border: "1px solid rgba(168, 85, 247, 0.3)"
+                      }}>
+                        <div className="flex items-start gap-2">
+                          <Question size={16} weight="bold" style={{ color: "#A855F7", marginTop: "2px" }} />
+                          <p className="text-sm font-medium" style={{ color: "#A855F7" }}>
+                            {selectedAnswer.question}
+                          </p>
+                        </div>
+                        <div className="pl-6 prose prose-invert prose-sm max-w-none" style={{
+                          color: "#FFF",
+                          fontSize: "13px",
+                          lineHeight: "1.6"
+                        }}>
+                          {selectedAnswer.answer.split('\n').map((line, i) => {
+                            // Bold text
+                            if (line.startsWith('**') && line.endsWith('**')) {
+                              return <p key={i} className="font-semibold mb-2" style={{ color: "#FFD700" }}>{line.replace(/\*\*/g, '')}</p>;
+                            }
+                            // List items
+                            if (line.startsWith('- ') || line.startsWith('• ')) {
+                              return <p key={i} className="ml-4 mb-1">• {line.substring(2)}</p>;
+                            }
+                            // Regular text
+                            if (line.trim()) {
+                              return <p key={i} className="mb-2">{line}</p>;
+                            }
+                            return null;
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

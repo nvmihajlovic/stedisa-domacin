@@ -18,6 +18,39 @@ export interface FinancialInsight {
   priority: number; // 1-10, higher = more important
 }
 
+export interface BudgetData {
+  categoryName: string;
+  budgetAmount: number;
+  spent: number;
+  remaining: number;
+  utilization: number;
+  period: string;
+}
+
+export interface GroupData {
+  groupId: string;
+  groupName: string;
+  monthlyExpenses: number;
+  expenseCount: number;
+}
+
+export interface SettlementData {
+  pendingSettlements: number;
+  toReceive: number;
+  toPay: number;
+}
+
+export interface SavingsGoalData {
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  progress: number;
+  remaining: number;
+  monthlyContributions: number;
+  isRecurring: boolean;
+  recurringAmount: number | null;
+}
+
 export interface FinancialData {
   currentMonthExpenses: number;
   currentMonthIncome: number;
@@ -29,6 +62,10 @@ export interface FinancialData {
   unusualExpenses: { description: string; amount: number; date: string }[];
   savingsRate: number;
   topSpendingDay?: { date: string; amount: number };
+  budgets?: BudgetData[];
+  groups?: GroupData[];
+  settlements?: SettlementData;
+  savingsGoals?: SavingsGoalData[];
 }
 
 export class FinancialAdvisor {
@@ -51,13 +88,17 @@ export class FinancialAdvisor {
     insights.push(...this.analyzeSavings());
     insights.push(...this.analyzeRecurringCosts());
     insights.push(...this.analyzeUnusualExpenses());
+    insights.push(...this.analyzeBudgets());
+    insights.push(...this.analyzeGroups());
+    insights.push(...this.analyzeSettlements());
+    insights.push(...this.analyzeSavingsGoals());
     insights.push(...this.generateMotivationalInsights());
     insights.push(...this.generateSmartTips());
 
     // Sort by priority and return top insights
     return insights
       .sort((a, b) => b.priority - a.priority)
-      .slice(0, 5); // Show top 5 insights
+      .slice(0, 6); // Show top 6 insights
   }
 
   /**
@@ -126,6 +167,10 @@ export class FinancialAdvisor {
         message: funMessages[Math.floor(Math.random() * funMessages.length)],
         icon: 'Warning',
         priority: 7,
+        action: {
+          label: 'Vidi kategorije',
+          href: '/statistics',
+        },
       });
     }
 
@@ -168,6 +213,10 @@ export class FinancialAdvisor {
         message: `Trošiš ${ratio.toFixed(0)}% svojih prihoda. Minus je ${deficit.toLocaleString('sr-RS')} RSD. Vreme za akciju!`,
         icon: 'WarningCircle',
         priority: 10,
+        action: {
+          label: 'Pregledaj troškove',
+          href: '/expenses',
+        },
       });
     } else if (ratio > 90) {
       insights.push({
@@ -187,6 +236,10 @@ export class FinancialAdvisor {
         message: `Samo ${ratio.toFixed(0)}% prihoda ide na troškove. Ušteda: ${savings.toLocaleString('sr-RS')} RSD. Legendarno!`,
         icon: 'Sparkle',
         priority: 9,
+        action: {
+          label: 'Vidi statistiku',
+          href: '/statistics',
+        },
       });
     }
 
@@ -226,6 +279,10 @@ export class FinancialAdvisor {
         message: `Samo ${savingsRate.toFixed(1)}% ide u štednju. Cilj: bar 20%! Možeš to!`,
         icon: 'Coin',
         priority: 7,
+        action: {
+          label: 'Postavi budžet',
+          href: '/budgets',
+        },
       });
     }
 
@@ -252,6 +309,10 @@ export class FinancialAdvisor {
         message: `${recurringExpenses.length} ponavljajućih troškova mesečno (${totalRecurring.toLocaleString('sr-RS')} RSD). Da li sve zaista koristiš? 🤔`,
         icon: 'Repeat',
         priority: 7,
+        action: {
+          label: 'Vidi troškove',
+          href: '/expenses',
+        },
       });
     }
 
@@ -350,6 +411,10 @@ export class FinancialAdvisor {
         message: `${categoryWithManySmallExpenses.count} transakcija u kategoriji "${categoryWithManySmallExpenses.category}". Možda ima prostora za optimizaciju?`,
         icon: 'MagnifyingGlass',
         priority: 6,
+        action: {
+          label: 'Analiziraj kategorije',
+          href: '/statistics',
+        },
       });
     }
 
@@ -364,8 +429,267 @@ export class FinancialAdvisor {
         priority: 6,
         action: {
           label: 'Postavi budžet',
-          href: '/dashboard',
+          href: '/budgets',
         },
+      });
+    }
+
+    return insights;
+  }
+
+  /**
+   * Analyze budgets and their utilization
+   */
+  private analyzeBudgets(): FinancialInsight[] {
+    const insights: FinancialInsight[] = [];
+    const { budgets } = this.data;
+
+    if (!budgets || budgets.length === 0) {
+      if (this.data.currentMonthExpenses > 50000) {
+        insights.push({
+          id: 'no-budgets',
+          type: 'tip',
+          title: 'Još nemaš budžete? 🎯',
+          message: 'Sa budžetima možeš bolje kontrolisati troškove. Probaj da postaviš budžet za top 3 kategorije!',
+          icon: 'Target',
+          priority: 6,
+          action: {
+            label: 'Kreiraj budžet',
+            href: '/budgets',
+          },
+        });
+      }
+      return insights;
+    }
+
+    const overBudget = budgets.filter(b => b.utilization > 100);
+    if (overBudget.length > 0) {
+      const worst = overBudget.sort((a, b) => b.utilization - a.utilization)[0];
+      insights.push({
+        id: 'budget-exceeded',
+        type: 'warning',
+        title: 'Budžet prekoračen! 🚨',
+        message: `Kategorija "${worst.categoryName}" je na ${worst.utilization.toFixed(0)}% budžeta! Prekoračenje: ${Math.abs(worst.remaining).toLocaleString('sr-RS')} RSD.`,
+        icon: 'Warning',
+        priority: 9,
+        action: {
+          label: 'Vidi budžete',
+          href: '/budgets',
+        },
+      });
+    }
+
+    const nearLimit = budgets.filter(b => b.utilization > 80 && b.utilization <= 100);
+    if (nearLimit.length > 0) {
+      const closest = nearLimit.sort((a, b) => b.utilization - a.utilization)[0];
+      insights.push({
+        id: 'budget-warning',
+        type: 'warning',
+        title: 'Blizu limita! ⚠️',
+        message: `"${closest.categoryName}" je potrošio ${closest.utilization.toFixed(0)}% budžeta. Još ${closest.remaining.toLocaleString('sr-RS')} RSD do limita!`,
+        icon: 'WarningCircle',
+        priority: 7,
+      });
+    }
+
+    const wellManaged = budgets.filter(b => b.utilization > 40 && b.utilization < 70);
+    if (wellManaged.length === budgets.length) {
+      insights.push({
+        id: 'budget-balanced',
+        type: 'success',
+        title: 'Perfektna balansa! ⚖️',
+        message: `Svi budžeti su u idealnom opsegu (40-70%). Majstorski upravljanje novcem! 👏`,
+        icon: 'CheckCircle',
+        priority: 7,
+      });
+    }
+
+    return insights;
+  }
+
+  private analyzeGroups(): FinancialInsight[] {
+    const insights: FinancialInsight[] = [];
+    const { groups } = this.data;
+
+    if (!groups || groups.length === 0) return insights;
+
+    const totalGroupExpenses = groups.reduce((sum, g) => sum + g.monthlyExpenses, 0);
+    const personalExpenses = this.data.currentMonthExpenses - totalGroupExpenses;
+
+    if (totalGroupExpenses > personalExpenses && totalGroupExpenses > 10000) {
+      insights.push({
+        id: 'group-spending-high',
+        type: 'info',
+        title: 'Grupni troškovi dominiraju 👥',
+        message: `${(totalGroupExpenses / this.data.currentMonthExpenses * 100).toFixed(0)}% troškova je iz grupa. Proveri ko je šta potrošio!`,
+        icon: 'Users',
+        priority: 6,
+        action: {
+          label: 'Vidi grupe',
+          href: '/groups',
+        },
+      });
+    }
+
+    const mostActive = groups.sort((a, b) => b.monthlyExpenses - a.monthlyExpenses)[0];
+    if (mostActive.expenseCount > 10) {
+      insights.push({
+        id: 'active-group',
+        type: 'info',
+        title: 'Najaktivnija grupa 🔥',
+        message: `"${mostActive.groupName}" ima ${mostActive.expenseCount} troškova ovog meseca (${mostActive.monthlyExpenses.toLocaleString('sr-RS')} RSD).`,
+        icon: 'Fire',
+        priority: 5,
+      });
+    }
+
+    return insights;
+  }
+
+  private analyzeSettlements(): FinancialInsight[] {
+    const insights: FinancialInsight[] = [];
+    const { settlements } = this.data;
+
+    if (!settlements || settlements.pendingSettlements === 0) return insights;
+
+    const netBalance = settlements.toReceive - settlements.toPay;
+
+    if (settlements.toPay > 5000) {
+      insights.push({
+        id: 'settlements-to-pay',
+        type: 'warning',
+        title: 'Dugovi čekaju! 💸',
+        message: `Imaš ${settlements.pendingSettlements} nereš${settlements.pendingSettlements === 1 ? 'eno poravnanje' : 'enih poravnanja'}. Ukupno duguješ: ${settlements.toPay.toLocaleString('sr-RS')} RSD.`,
+        icon: 'CurrencyCircleDollar',
+        priority: 8,
+        action: {
+          label: 'Poravnaj dugove',
+          href: '/settlements',
+        },
+      });
+    }
+
+    if (settlements.toReceive > 5000) {
+      insights.push({
+        id: 'settlements-to-receive',
+        type: 'info',
+        title: 'Novac te čeka! 💰',
+        message: `${settlements.pendingSettlements} ${settlements.pendingSettlements === 1 ? 'osoba ti duguje' : 'ljudi ti duguju'}. Ukupno: ${settlements.toReceive.toLocaleString('sr-RS')} RSD. Vreme je za naplatu!`,
+        icon: 'Money',
+        priority: 7,
+        action: {
+          label: 'Vidi poravnanja',
+          href: '/settlements',
+        },
+      });
+    }
+
+    if (netBalance > 0 && settlements.toReceive > settlements.toPay * 2) {
+      insights.push({
+        id: 'settlements-positive',
+        type: 'success',
+        title: 'Ti si u plusu! 😎',
+        message: `Neto balans poravnanja: +${netBalance.toLocaleString('sr-RS')} RSD. Lepo se osećaš, zar ne?`,
+        icon: 'TrendUp',
+        priority: 6,
+      });
+    }
+
+    return insights;
+  }
+
+  private analyzeSavingsGoals(): FinancialInsight[] {
+    const insights: FinancialInsight[] = [];
+    const { savingsGoals } = this.data;
+
+    if (!savingsGoals || savingsGoals.length === 0) {
+      if (this.data.savingsRate > 15) {
+        insights.push({
+          id: 'no-savings-goals',
+          type: 'tip',
+          title: 'Štediš dobro! Zašto ne definišeš ciljeve? 🎯',
+          message: 'Imaš odličnu stopu štednje. Postavi cilj štednje i prati napredak!',
+          icon: 'Target',
+          priority: 6,
+          action: {
+            label: 'Kreiraj cilj',
+            href: '/savings',
+          },
+        });
+      }
+      return insights;
+    }
+
+    const nearCompletion = savingsGoals.filter(g => g.progress >= 80 && g.progress < 100);
+    if (nearCompletion.length > 0) {
+      const closest = nearCompletion.sort((a, b) => b.progress - a.progress)[0];
+      insights.push({
+        id: 'savings-near-goal',
+        type: 'success',
+        title: 'Skoro si stigao! 🎉',
+        message: `"${closest.name}" je na ${closest.progress.toFixed(0)}%! Još samo ${closest.remaining.toLocaleString('sr-RS')} RSD do cilja!`,
+        icon: 'Trophy',
+        priority: 8,
+        action: {
+          label: 'Dodaj novac',
+          href: '/savings',
+        },
+      });
+    }
+
+    const completed = savingsGoals.filter(g => g.progress >= 100);
+    if (completed.length > 0) {
+      insights.push({
+        id: 'savings-completed',
+        type: 'success',
+        title: 'Cilj ostvaren! 🏆',
+        message: `Čestitamo! Uspešno si završio ${completed.length} ${completed.length === 1 ? 'cilj' : 'ciljeva'} štednje. To se zove disciplina!`,
+        icon: 'Sparkle',
+        priority: 9,
+      });
+    }
+
+    const recurringGoals = savingsGoals.filter(g => g.isRecurring && g.recurringAmount);
+    if (recurringGoals.length > 0) {
+      const totalRecurring = recurringGoals.reduce((sum, g) => sum + (g.recurringAmount || 0), 0);
+      const totalContributed = recurringGoals.reduce((sum, g) => sum + g.monthlyContributions, 0);
+      
+      if (totalContributed > totalRecurring) {
+        insights.push({
+          id: 'savings-overperforming',
+          type: 'success',
+          title: 'Presudio si očekivanja! 💪',
+          message: `Ovog meseca si uštedeo ${totalContributed.toLocaleString('sr-RS')} RSD, više od planiranih ${totalRecurring.toLocaleString('sr-RS')} RSD!`,
+          icon: 'TrendUp',
+          priority: 7,
+        });
+      } else if (totalContributed < totalRecurring * 0.5 && totalRecurring > 5000) {
+        insights.push({
+          id: 'savings-underperforming',
+          type: 'warning',
+          title: 'Štednja u zaostatku ⚠️',
+          message: `Planirano: ${totalRecurring.toLocaleString('sr-RS')} RSD, uplaćeno: ${totalContributed.toLocaleString('sr-RS')} RSD. Pojačaj tempo!`,
+          icon: 'WarningCircle',
+          priority: 7,
+          action: {
+            label: 'Dodaj u štednju',
+            href: '/savings',
+          },
+        });
+      }
+    }
+
+    const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0);
+    const totalTarget = savingsGoals.reduce((sum, g) => sum + g.targetAmount, 0);
+    
+    if (totalSaved > 100000) {
+      insights.push({
+        id: 'savings-milestone',
+        type: 'success',
+        title: 'Impresivan progress! 🌟',
+        message: `Ukupno si uštedeo ${totalSaved.toLocaleString('sr-RS')} RSD! To je ${(totalSaved/totalTarget*100).toFixed(0)}% svih ciljeva!`,
+        icon: 'Star',
+        priority: 7,
       });
     }
 

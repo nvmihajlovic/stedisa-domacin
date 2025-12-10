@@ -258,33 +258,71 @@ export default function GroupChartsAdvanced({
           </h2>
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={monthlyTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.04)" />
-              <XAxis dataKey="month" stroke="rgba(255, 255, 255, 0.24)" />
-              <YAxis stroke="rgba(255, 255, 255, 0.24)" />
+              <defs>
+                <linearGradient id="expensesGradientGroup" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#C339B5" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#C339B5" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="incomesGradientGroup" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#1FBFA4" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#1FBFA4" stopOpacity={0}/>
+                </linearGradient>
+                <filter id="shadowExpensesGroup">
+                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#C339B5" floodOpacity="0.3"/>
+                </filter>
+                <filter id="shadowIncomesGroup">
+                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1FBFA4" floodOpacity="0.3"/>
+                </filter>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <XAxis 
+                dataKey="month" 
+                stroke="rgba(165,164,182,0.6)" 
+                tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 12}}
+                axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+              />
+              <YAxis 
+                stroke="rgba(165,164,182,0.6)" 
+                tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 12}}
+                axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+              />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1a1b23",
-                  border: "1px solid #444",
-                  borderRadius: "8px",
-                  color: "#fff",
+                  background: 'rgba(26, 24, 37, 0.95)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  color: '#FFFFFF',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
                 }}
+                labelStyle={{color: '#FFFFFF', fontWeight: 600, marginBottom: '8px'}}
+                itemStyle={{color: '#FFFFFF', padding: '4px 0'}}
               />
-              <Legend />
+              <Legend 
+                wrapperStyle={{fontSize: '13px', fontFamily: '"Inter", sans-serif', paddingTop: '20px'}}
+                iconType="circle"
+                formatter={(value) => <span style={{color: '#FFFFFF', fontSize: '13px', fontWeight: 500}}>{value}</span>}
+              />
               <Line
                 type="monotone"
                 dataKey="expenses"
                 stroke="#C339B5"
-                strokeWidth={2}
+                strokeWidth={3}
                 name="Troškovi"
-                dot={{ fill: "#C339B5", r: 4 }}
+                dot={{fill: '#C339B5', strokeWidth: 2, r: 4, stroke: '#1A1825'}}
+                activeDot={{r: 6, fill: '#C339B5', stroke: '#FFFFFF', strokeWidth: 2}}
+                filter="url(#shadowExpensesGroup)"
               />
               <Line
                 type="monotone"
                 dataKey="incomes"
                 stroke="#1FBFA4"
-                strokeWidth={2}
+                strokeWidth={3}
                 name="Prihodi"
-                dot={{ fill: "#1FBFA4", r: 4 }}
+                dot={{fill: '#1FBFA4', strokeWidth: 2, r: 4, stroke: '#1A1825'}}
+                activeDot={{r: 6, fill: '#1FBFA4', stroke: '#FFFFFF', strokeWidth: 2}}
+                filter="url(#shadowIncomesGroup)"
               />
             </LineChart>
           </ResponsiveContainer>
@@ -306,50 +344,123 @@ export default function GroupChartsAdvanced({
               Troškovi po kategorijama
             </h2>
             <div className="flex items-center gap-6">
-              <div style={{ width: "240px", height: "240px", flexShrink: 0 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={expensePieData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={115}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {expensePieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#1a1b23",
-                        border: "1px solid #444",
-                        borderRadius: "8px",
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div style={{ width: "200px", height: "200px", flexShrink: 0 }}>
+                <svg viewBox="0 0 100 100" style={{width: '100%', height: '100%'}}>
+                  <defs>
+                    <linearGradient id="expenseGradient1Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FF6B9D" />
+                      <stop offset="100%" stopColor="#C339B5" />
+                    </linearGradient>
+                    <linearGradient id="expenseGradient2Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FFB3E6" />
+                      <stop offset="100%" stopColor="#FF68C2" />
+                    </linearGradient>
+                    <linearGradient id="expenseGradient3Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#B794FF" />
+                      <stop offset="100%" stopColor="#8A63D2" />
+                    </linearGradient>
+                    <linearGradient id="expenseGradient4Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#E488A0" />
+                      <stop offset="100%" stopColor="#D16B8C" />
+                    </linearGradient>
+                    <linearGradient id="expenseGradient5Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FFA0D2" />
+                      <stop offset="100%" stopColor="#FF79BF" />
+                    </linearGradient>
+                    <linearGradient id="expenseGradient6Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#C77DFF" />
+                      <stop offset="100%" stopColor="#9D4EDD" />
+                    </linearGradient>
+                    <radialGradient id="depthShadowExpGroup" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+                      <stop offset="100%" stopColor="rgba(0,0,0,0.4)" />
+                    </radialGradient>
+                    <radialGradient id="segmentShineExpGroup" cx="30%" cy="30%" r="70%">
+                      <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                    </radialGradient>
+                    <filter id="innerShadowExpGroup">
+                      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" />
+                      <feOffset dx="0" dy="1" result="offsetblur" />
+                      <feComponentTransfer><feFuncA type="linear" slope="0.3" /></feComponentTransfer>
+                      <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                  </defs>
+                  <g>
+                    {(() => {
+                      const categories = expensePieData;
+                      const total = categories.reduce((sum, cat) => sum + cat.value, 0);
+                      
+                      if (categories.length === 1) {
+                        return (
+                          <g>
+                            <circle cx="51.5" cy="51.5" r="45" fill="rgba(0,0,0,0.25)" opacity="0.6" />
+                            <circle cx="50" cy="50" r="45" fill="url(#expenseGradient1Group)" style={{filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))'}} />
+                            <circle cx="50" cy="50" r="45" fill="rgba(0,0,0,0.15)" style={{filter: 'url(#innerShadowExpGroup)'}} />
+                            <circle cx="50" cy="50" r="45" fill="url(#segmentShineExpGroup)" opacity="0.18" />
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                          </g>
+                        );
+                      }
+                      
+                      let currentAngle = 0;
+                      const premiumGradients = ['url(#expenseGradient1Group)', 'url(#expenseGradient2Group)', 'url(#expenseGradient3Group)', 'url(#expenseGradient4Group)', 'url(#expenseGradient5Group)', 'url(#expenseGradient6Group)'];
+                      return categories.map((cat, idx) => {
+                        const percentage = (cat.value / total) * 100;
+                        const angle = (percentage / 100) * 360;
+                        const startAngle = currentAngle;
+                        currentAngle += angle;
+                        
+                        const startRad = (startAngle * Math.PI) / 180;
+                        const endRad = (currentAngle * Math.PI) / 180;
+                        const x1 = 50 + 45 * Math.cos(startRad);
+                        const y1 = 50 + 45 * Math.sin(startRad);
+                        const x2 = 50 + 45 * Math.cos(endRad);
+                        const y2 = 50 + 45 * Math.sin(endRad);
+                        const largeArc = angle > 180 ? 1 : 0;
+                        const gradient = premiumGradients[idx % premiumGradients.length];
+                        const shadowIntensity = 0.4 - (idx * 0.08);
+                        const offsetX = idx * 0.15;
+                        const offsetY = idx * 0.15;
+                        const depthOffset = 1.5;
+                        
+                        return (
+                          <g key={idx} transform={`translate(${offsetX}, ${offsetY})`}>
+                            <path d={`M ${50 + depthOffset} ${50 + depthOffset} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} Z`} fill="rgba(0,0,0,0.25)" opacity="0.6" />
+                            <path d={`M ${x1} ${y1} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} L ${x2} ${y2} A 45 45 0 ${largeArc ? 0 : 1} 0 ${x1} ${y1} Z`} fill="url(#depthShadowExpGroup)" opacity="0.5" />
+                            <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill={gradient} className="hover:opacity-95 transition-all" style={{filter: `drop-shadow(0 ${2 + idx * 0.5}px ${5 + idx * 1.5}px rgba(0,0,0,${shadowIntensity + 0.15}))`, transform: `translateZ(${idx * 2}px)`}} />
+                            <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="rgba(0,0,0,0.15)" style={{filter: 'url(#innerShadowExpGroup)'}} />
+                            <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="url(#segmentShineExpGroup)" opacity={0.18 + (idx * 0.02)} />
+                            <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                            <path d={`A 45 45 0 ${largeArc} 1 ${x2} ${y2}`} fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1.5" strokeLinecap="round" transform={`translate(${x1}, ${y1})`} opacity="0.4" />
+                          </g>
+                        );
+                      });
+                    })()}
+                  </g>
+                  <circle cx="50" cy="50" r="20" fill="#10111A" stroke="rgba(255, 179, 230, 0.35)" strokeWidth="1.5" />
+                  <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="14" fontWeight="bold" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
+                    {expensePieData.length}
+                  </text>
+                  <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="8" opacity="0.9" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
+                    kat.
+                  </text>
+                </svg>
               </div>
-              <div className="flex-1 space-y-2.5">
-                {expensePieData.slice(0, 5).map((cat, idx) => {
+              <div className="flex-1 space-y-1.5 overflow-hidden flex flex-col justify-center">
+                {expensePieData.slice(0, 4).map((cat, idx) => {
                   const Icon = getIcon(cat.name);
                   const total = expensePieData.reduce((sum, c) => sum + c.value, 0);
                   const percentage = ((cat.value / total) * 100).toFixed(1);
+                  const premiumColors = ['#FF6B9D', '#FFB3E6', '#B794FF', '#E488A0', '#FFA0D2', '#C77DFF'];
+                  const color = premiumColors[idx % premiumColors.length];
                   return (
-                    <div key={idx} className="flex items-center gap-4">
-                      <div
-                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-                        style={{ background: cat.color }}
-                      ></div>
+                    <div key={idx} className="flex items-center gap-2.5 group">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background: color}}></div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate text-white">
-                          {cat.name}
-                        </div>
+                        <div className="text-[11px] font-semibold truncate" style={{color: '#FFD9EF'}}>{cat.name}</div>
                       </div>
-                      <div className="text-xs font-bold" style={{ color: cat.color }}>
-                        {percentage}%
-                      </div>
+                      <div className="text-[9px] font-bold" style={{color: color}}>{percentage}%</div>
                     </div>
                   );
                 })}
@@ -371,50 +482,123 @@ export default function GroupChartsAdvanced({
               Prihodi po kategorijama
             </h2>
             <div className="flex items-center gap-6">
-              <div style={{ width: "240px", height: "240px", flexShrink: 0 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={incomePieData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={115}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {incomePieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#1a1b23",
-                        border: "1px solid #444",
-                        borderRadius: "8px",
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div style={{ width: "200px", height: "200px", flexShrink: 0 }}>
+                <svg viewBox="0 0 100 100" style={{width: '100%', height: '100%'}}>
+                  <defs>
+                    <linearGradient id="incomeGradient1Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#4DD0E1" />
+                      <stop offset="100%" stopColor="#1FBFA4" />
+                    </linearGradient>
+                    <linearGradient id="incomeGradient2Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#81C784" />
+                      <stop offset="100%" stopColor="#66BB6A" />
+                    </linearGradient>
+                    <linearGradient id="incomeGradient3Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#4DB6AC" />
+                      <stop offset="100%" stopColor="#26A69A" />
+                    </linearGradient>
+                    <linearGradient id="incomeGradient4Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#AED581" />
+                      <stop offset="100%" stopColor="#9CCC65" />
+                    </linearGradient>
+                    <linearGradient id="incomeGradient5Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#4FC3F7" />
+                      <stop offset="100%" stopColor="#29B6F6" />
+                    </linearGradient>
+                    <linearGradient id="incomeGradient6Group" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#64DD17" />
+                      <stop offset="100%" stopColor="#76FF03" />
+                    </linearGradient>
+                    <radialGradient id="depthShadowIncGroup" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+                      <stop offset="100%" stopColor="rgba(0,0,0,0.4)" />
+                    </radialGradient>
+                    <radialGradient id="segmentShineIncGroup" cx="30%" cy="30%" r="70%">
+                      <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                    </radialGradient>
+                    <filter id="innerShadowIncGroup">
+                      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" />
+                      <feOffset dx="0" dy="1" result="offsetblur" />
+                      <feComponentTransfer><feFuncA type="linear" slope="0.3" /></feComponentTransfer>
+                      <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                  </defs>
+                  <g>
+                    {(() => {
+                      const categories = incomePieData;
+                      const total = categories.reduce((sum, cat) => sum + cat.value, 0);
+                      
+                      if (categories.length === 1) {
+                        return (
+                          <g>
+                            <circle cx="51.5" cy="51.5" r="45" fill="rgba(0,0,0,0.25)" opacity="0.6" />
+                            <circle cx="50" cy="50" r="45" fill="url(#incomeGradient1Group)" style={{filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))'}} />
+                            <circle cx="50" cy="50" r="45" fill="rgba(0,0,0,0.15)" style={{filter: 'url(#innerShadowIncGroup)'}} />
+                            <circle cx="50" cy="50" r="45" fill="url(#segmentShineIncGroup)" opacity="0.18" />
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                          </g>
+                        );
+                      }
+                      
+                      let currentAngle = 0;
+                      const premiumGradients = ['url(#incomeGradient1Group)', 'url(#incomeGradient2Group)', 'url(#incomeGradient3Group)', 'url(#incomeGradient4Group)', 'url(#incomeGradient5Group)', 'url(#incomeGradient6Group)'];
+                      return categories.map((cat, idx) => {
+                        const percentage = (cat.value / total) * 100;
+                        const angle = (percentage / 100) * 360;
+                        const startAngle = currentAngle;
+                        currentAngle += angle;
+                        
+                        const startRad = (startAngle * Math.PI) / 180;
+                        const endRad = (currentAngle * Math.PI) / 180;
+                        const x1 = 50 + 45 * Math.cos(startRad);
+                        const y1 = 50 + 45 * Math.sin(startRad);
+                        const x2 = 50 + 45 * Math.cos(endRad);
+                        const y2 = 50 + 45 * Math.sin(endRad);
+                        const largeArc = angle > 180 ? 1 : 0;
+                        const gradient = premiumGradients[idx % premiumGradients.length];
+                        const shadowIntensity = 0.4 - (idx * 0.08);
+                        const offsetX = idx * 0.15;
+                        const offsetY = idx * 0.15;
+                        const depthOffset = 1.5;
+                        
+                        return (
+                          <g key={idx} transform={`translate(${offsetX}, ${offsetY})`}>
+                            <path d={`M ${50 + depthOffset} ${50 + depthOffset} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} Z`} fill="rgba(0,0,0,0.25)" opacity="0.6" />
+                            <path d={`M ${x1} ${y1} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} L ${x2} ${y2} A 45 45 0 ${largeArc ? 0 : 1} 0 ${x1} ${y1} Z`} fill="url(#depthShadowIncGroup)" opacity="0.5" />
+                            <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill={gradient} className="hover:opacity-95 transition-all" style={{filter: `drop-shadow(0 ${2 + idx * 0.5}px ${5 + idx * 1.5}px rgba(0,0,0,${shadowIntensity + 0.15}))`, transform: `translateZ(${idx * 2}px)`}} />
+                            <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="rgba(0,0,0,0.15)" style={{filter: 'url(#innerShadowIncGroup)'}} />
+                            <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="url(#segmentShineIncGroup)" opacity={0.18 + (idx * 0.02)} />
+                            <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                            <path d={`A 45 45 0 ${largeArc} 1 ${x2} ${y2}`} fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1.5" strokeLinecap="round" transform={`translate(${x1}, ${y1})`} opacity="0.4" />
+                          </g>
+                        );
+                      });
+                    })()}
+                  </g>
+                  <circle cx="50" cy="50" r="20" fill="#10111A" stroke="rgba(100, 243, 194, 0.35)" strokeWidth="1.5" />
+                  <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="14" fontWeight="bold" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
+                    {incomePieData.length}
+                  </text>
+                  <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="8" opacity="0.9" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
+                    kat.
+                  </text>
+                </svg>
               </div>
-              <div className="flex-1 space-y-2.5">
-                {incomePieData.slice(0, 5).map((cat, idx) => {
+              <div className="flex-1 space-y-1.5 overflow-hidden flex flex-col justify-center">
+                {incomePieData.slice(0, 4).map((cat, idx) => {
                   const Icon = getIcon(cat.name);
                   const total = incomePieData.reduce((sum, c) => sum + c.value, 0);
                   const percentage = ((cat.value / total) * 100).toFixed(1);
+                  const premiumColors = ['#4DD0E1', '#81C784', '#4DB6AC', '#AED581', '#4FC3F7', '#64DD17'];
+                  const color = premiumColors[idx % premiumColors.length];
                   return (
-                    <div key={idx} className="flex items-center gap-4">
-                      <div
-                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-                        style={{ background: cat.color }}
-                      ></div>
+                    <div key={idx} className="flex items-center gap-2.5 group">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background: color}}></div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate text-white">
-                          {cat.name}
-                        </div>
+                        <div className="text-[11px] font-semibold truncate" style={{color: '#D3FFF2'}}>{cat.name}</div>
                       </div>
-                      <div className="text-xs font-bold" style={{ color: cat.color }}>
-                        {percentage}%
-                      </div>
+                      <div className="text-[9px] font-bold" style={{color: color}}>{percentage}%</div>
                     </div>
                   );
                 })}
@@ -440,17 +624,47 @@ export default function GroupChartsAdvanced({
             </h2>
             <ResponsiveContainer width="100%" height={375}>
               <BarChart data={dailyExpenses}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.04)" />
-                <XAxis dataKey="day" stroke="rgba(255, 255, 255, 0.24)" />
-                <YAxis stroke="rgba(255, 255, 255, 0.24)" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1a1b23",
-                    border: "1px solid #444",
-                    borderRadius: "8px",
-                  }}
+                <defs>
+                  <linearGradient id="barGradientExpGroup" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#FFB3E6" stopOpacity={1}/>
+                    <stop offset="100%" stopColor="#B794FF" stopOpacity={0.8}/>
+                  </linearGradient>
+                  <filter id="barShadowGroup">
+                    <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#FFB3E6" floodOpacity="0.4"/>
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis 
+                  dataKey="day" 
+                  stroke="rgba(165,164,182,0.6)" 
+                  tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 11}}
+                  axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
                 />
-                <Bar dataKey="amount" fill="#C339B5" name="Iznos" />
+                <YAxis 
+                  stroke="rgba(165,164,182,0.6)" 
+                  tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 11}}
+                  axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    background: 'rgba(26, 24, 37, 0.95)', 
+                    border: '1px solid rgba(255, 255, 255, 0.1)', 
+                    borderRadius: '12px', 
+                    color: '#FFFFFF',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                  }}
+                  cursor={{fill: 'rgba(255, 179, 230, 0.1)'}}
+                  formatter={(value: any) => [`${Number(value).toLocaleString('sr-RS')} RSD`, 'Iznos']}
+                />
+                <Bar 
+                  dataKey="amount" 
+                  fill="url(#barGradientExpGroup)" 
+                  name="Iznos"
+                  radius={[8, 8, 0, 0]}
+                  filter="url(#barShadowGroup)"
+                />
               </BarChart>
             </ResponsiveContainer>
           </motion.div>
@@ -515,19 +729,45 @@ export default function GroupChartsAdvanced({
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={memberComparison}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="name" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
+              <defs>
+                <linearGradient id="memberExpGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#FFB3E6" stopOpacity={1}/>
+                  <stop offset="100%" stopColor="#C339B5" stopOpacity={0.8}/>
+                </linearGradient>
+                <linearGradient id="memberIncGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6FFFC4" stopOpacity={1}/>
+                  <stop offset="100%" stopColor="#1FBFA4" stopOpacity={0.8}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                stroke="rgba(165,164,182,0.6)" 
+                tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 11}}
+                axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+              />
+              <YAxis 
+                stroke="rgba(165,164,182,0.6)" 
+                tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 11}}
+                axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+              />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1a1b23",
-                  border: "1px solid #444",
-                  borderRadius: "8px",
+                  background: 'rgba(26, 24, 37, 0.95)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  color: '#FFFFFF',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
                 }}
               />
-              <Legend />
-              <Bar dataKey="expenses" fill="#EF4444" name="Troškovi" />
-              <Bar dataKey="incomes" fill="#10B981" name="Prihodi" />
+              <Legend 
+                wrapperStyle={{fontSize: '13px', fontFamily: '"Inter", sans-serif'}}
+                iconType="circle"
+              />
+              <Bar dataKey="expenses" fill="url(#memberExpGradient)" name="Troškovi" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="incomes" fill="url(#memberIncGradient)" name="Prihodi" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </motion.div>
@@ -552,17 +792,36 @@ export default function GroupChartsAdvanced({
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={hourlyExpenses}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis dataKey="hour" stroke="#9CA3AF" style={{ fontSize: "11px" }} />
-                  <YAxis stroke="#9CA3AF" style={{ fontSize: "11px" }} />
+                  <defs>
+                    <linearGradient id="hourlyBarGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#B794FF" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#8A63D2" stopOpacity={0.8}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis 
+                    dataKey="hour" 
+                    stroke="rgba(165,164,182,0.6)" 
+                    tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 10}}
+                    axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                  />
+                  <YAxis 
+                    stroke="rgba(165,164,182,0.6)" 
+                    tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 10}}
+                    axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#1a1b23",
-                      border: "1px solid #444",
-                      borderRadius: "8px",
+                      background: 'rgba(26, 24, 37, 0.95)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '12px',
+                      color: '#FFFFFF',
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
                     }}
                   />
-                  <Bar dataKey="amount" fill="#B794FF" name="Iznos" />
+                  <Bar dataKey="amount" fill="url(#hourlyBarGradient)" name="Iznos" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </motion.div>
@@ -581,32 +840,60 @@ export default function GroupChartsAdvanced({
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={last30Days}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis dataKey="date" stroke="#9CA3AF" style={{ fontSize: "10px" }} />
-                  <YAxis stroke="#9CA3AF" style={{ fontSize: "11px" }} />
+                  <defs>
+                    <linearGradient id="last30ExpGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#FFB3E6" stopOpacity={0.8}/>
+                      <stop offset="100%" stopColor="#B794FF" stopOpacity={1}/>
+                    </linearGradient>
+                    <linearGradient id="last30IncGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#6FFFC4" stopOpacity={0.8}/>
+                      <stop offset="100%" stopColor="#4DD0E1" stopOpacity={1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="rgba(165,164,182,0.6)" 
+                    tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 9}}
+                    axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                  />
+                  <YAxis 
+                    stroke="rgba(165,164,182,0.6)" 
+                    tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 10}}
+                    axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#1a1b23",
-                      border: "1px solid #444",
-                      borderRadius: "8px",
+                      background: 'rgba(26, 24, 37, 0.95)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '12px',
+                      color: '#FFFFFF',
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
                     }}
                   />
-                  <Legend wrapperStyle={{ fontSize: "12px" }} iconType="line" />
+                  <Legend 
+                    wrapperStyle={{fontSize: '12px', fontFamily: '"Inter", sans-serif'}}
+                    iconType="circle"
+                  />
                   <Line
                     type="monotone"
                     dataKey="expenses"
-                    stroke="#C339B5"
-                    strokeWidth={2}
+                    stroke="url(#last30ExpGradient)"
+                    strokeWidth={2.5}
                     name="Troškovi"
                     dot={false}
+                    style={{filter: 'drop-shadow(0 2px 4px rgba(255, 179, 230, 0.3))'}}
                   />
                   <Line
                     type="monotone"
                     dataKey="incomes"
-                    stroke="#1FBFA4"
-                    strokeWidth={2}
+                    stroke="url(#last30IncGradient)"
+                    strokeWidth={2.5}
                     name="Prihodi"
                     dot={false}
+                    style={{filter: 'drop-shadow(0 2px 4px rgba(111, 255, 196, 0.3))'}}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -661,23 +948,38 @@ export default function GroupChartsAdvanced({
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={categoryGrowth} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis type="number" stroke="#9CA3AF" style={{ fontSize: "11px" }} />
+                  <defs>
+                    <linearGradient id="growthBarGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#4EC8E4" stopOpacity={0.8}/>
+                      <stop offset="100%" stopColor="#7FDFFF" stopOpacity={1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <XAxis 
+                    type="number" 
+                    stroke="rgba(165,164,182,0.6)" 
+                    tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 10}}
+                    axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                  />
                   <YAxis
                     dataKey="name"
                     type="category"
-                    stroke="#9CA3AF"
-                    style={{ fontSize: "11px" }}
+                    stroke="rgba(165,164,182,0.6)"
+                    tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 10}}
+                    axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
                     width={100}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#1a1b23",
-                      border: "1px solid #444",
-                      borderRadius: "8px",
+                      background: 'rgba(26, 24, 37, 0.95)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '12px',
+                      color: '#FFFFFF',
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
                     }}
                   />
-                  <Bar dataKey="growth" fill="#4EC8E4" name="Rast %" />
+                  <Bar dataKey="growth" fill="url(#growthBarGradient)" name="Rast %" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </motion.div>

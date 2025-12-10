@@ -17,9 +17,35 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const month = searchParams.get("month")
   const year = searchParams.get("year")
+  const groupFilter = searchParams.get("groupFilter") // 'all' | 'personal' | groupId
+
+  // Get user's active group
+  const userWithGroup = await prisma.user.findUnique({
+    where: { id: user.userId },
+    select: { activeGroupId: true }
+  })
 
   let whereClause: any = {
     userId: user.userId,
+  }
+
+  // Filter by group context
+  if (groupFilter === 'all') {
+    // Show all expenses (no group filter)
+  } else if (groupFilter === 'personal') {
+    // Show only personal expenses (no group)
+    whereClause.groupId = null
+  } else if (groupFilter && groupFilter !== 'null') {
+    // Show expenses for specific group
+    whereClause.groupId = groupFilter
+  } else {
+    // Default behavior: if user has active group, show ONLY that group's expenses
+    // Otherwise show personal expenses (groupId: null)
+    if (userWithGroup?.activeGroupId) {
+      whereClause.groupId = userWithGroup.activeGroupId
+    } else {
+      whereClause.groupId = null
+    }
   }
 
   // If month and year are provided, filter by date range
@@ -171,6 +197,83 @@ export async function POST(req: Request) {
       },
     })
 
+    console.log(`✅ Expense created: ${expense.id}`)
+
+    // Check if this is a "Štednja" (Savings) category expense
+    // If so, automatically create a savings contribution
+    try {
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { isSavings: true, name: true }
+      })
+
+      console.log(`📊 Category check:`, { categoryId, isSavings: category?.isSavings, name: category?.name })
+
+      if (category?.isSavings) {
+        console.log(`💰 Detected savings category expense - creating contribution`)
+        
+        // Find or create a default savings goal for this category
+        let savingsGoal = await prisma.savingsGoal.findFirst({
+          where: {
+            userId: user.userId,
+            categoryId: categoryId,
+            groupId: finalGroupId,
+            isActive: true
+          }
+        })
+
+        // If no savings goal exists, create a default one
+        if (!savingsGoal) {
+          const defaultTargetAmount = 100000 // Default target: 100,000 RSD
+          savingsGoal = await prisma.savingsGoal.create({
+            data: {
+              userId: user.userId,
+              groupId: finalGroupId,
+              categoryId: categoryId,
+              name: `${category.name} - Cilj`,
+              targetAmount: defaultTargetAmount,
+              currentAmount: 0,
+              currency: 'RSD',
+              period: 'monthly',
+              isRecurring: false,
+              color: '#FFD700',
+              icon: 'CurrencyCircleDollar',
+              isActive: true
+            }
+          })
+          console.log(`✅ Created default savings goal: ${savingsGoal.name}`)
+        }
+
+        // Create savings contribution
+        await prisma.savingsContribution.create({
+          data: {
+            savingsGoalId: savingsGoal.id,
+            amount: amountInRSD, // Always use RSD amount
+            currency: 'RSD',
+            userId: user.userId,
+            groupId: finalGroupId,
+            description: description || `Štednja - ${new Date().toLocaleDateString('sr-RS')}`,
+            expenseId: expense.id // Link contribution to this expense
+          }
+        })
+
+        // Update savings goal current amount
+        await prisma.savingsGoal.update({
+          where: { id: savingsGoal.id },
+          data: {
+            currentAmount: {
+              increment: amountInRSD
+            }
+          }
+        })
+
+        console.log(`✅ Added ${amountInRSD} RSD to savings goal "${savingsGoal.name}"`)
+      }
+    } catch (savingsError) {
+      console.error('⚠️ Error processing savings category:', savingsError)
+      // Don't fail the expense creation if savings processing fails
+    }
+
     // Invalidate AI insights cache after creating expense
     invalidateInsightsCache(user.userId)
 
@@ -255,6 +358,8 @@ export async function POST(req: Request) {
 
     // Ako je isRecurring true, kreiraj RecurringExpense
     if (isRecurring && recurringType && nextRecurringDate) {
+      const dayOfMonth = body.dayOfMonth || new Date(nextRecurringDate).getDate()
+      
       await prisma.recurringExpense.create({
         data: {
           userId: user.userId,
@@ -263,6 +368,7 @@ export async function POST(req: Request) {
           frequency: recurringType,
           nextExecutionAt: new Date(nextRecurringDate),
           categoryId: categoryId,
+          dayOfMonth: dayOfMonth,
           expenses: {
             connect: { id: expense.id }
           }

@@ -221,10 +221,10 @@ export async function GET(req: NextRequest) {
     );
 
     // Izračunaj ukupne troškove
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
 
     // Izračunaj ukupne prihode
-    const totalIncomes = incomes.reduce((sum, inc) => sum + inc.amount, 0);
+    const totalIncomes = incomes.reduce((sum, inc) => sum + (inc.amountInRSD || inc.amount), 0);
 
     // Bilans
     const balance = totalIncomes - totalExpenses;
@@ -240,7 +240,7 @@ export async function GET(req: NextRequest) {
             icon: exp.category.icon || "ShoppingCart",
           };
         }
-        acc[categoryName].total += exp.amount;
+        acc[categoryName].total += (exp.amountInRSD || exp.amount);
         return acc;
       },
       {} as Record<
@@ -260,7 +260,7 @@ export async function GET(req: NextRequest) {
             icon: inc.category.icon || "CurrencyCircleDollar",
           };
         }
-        acc[categoryName].total += inc.amount;
+        acc[categoryName].total += (inc.amountInRSD || inc.amount);
         return acc;
       },
       {} as Record<
@@ -273,11 +273,11 @@ export async function GET(req: NextRequest) {
     const memberComparison = activeMembers.map((member: any) => {
       const memberExpenses = expenses
         .filter((exp) => exp.userId === member.userId)
-        .reduce((sum, exp) => sum + exp.amount, 0);
+        .reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
 
       const memberIncomes = incomes
         .filter((inc) => inc.userId === member.userId)
-        .reduce((sum, inc) => sum + inc.amount, 0);
+        .reduce((sum, inc) => sum + (inc.amountInRSD || inc.amount), 0);
 
       return {
         userId: member.userId,
@@ -306,7 +306,7 @@ export async function GET(req: NextRequest) {
       // Ako je mesec počeo pre kreiranja grupe, koristi datum kreiranja kao start
       const effectiveStart = monthStart < groupCreatedDate ? groupCreatedDate : monthStart;
 
-      const monthExpenses = await prisma.expense.aggregate({
+      const monthExpenses = await prisma.expense.findMany({
         where: {
           userId: { in: memberUserIds },
           date: {
@@ -314,12 +314,13 @@ export async function GET(req: NextRequest) {
             lte: monthEnd,
           },
         },
-        _sum: {
+        select: {
           amount: true,
+          amountInRSD: true,
         },
       });
 
-      const monthIncomes = await prisma.income.aggregate({
+      const monthIncomes = await prisma.income.findMany({
         where: {
           userId: { in: memberUserIds },
           date: {
@@ -327,18 +328,22 @@ export async function GET(req: NextRequest) {
             lte: monthEnd,
           },
         },
-        _sum: {
+        select: {
           amount: true,
+          amountInRSD: true,
         },
       });
+
+      const monthExpensesTotal = monthExpenses.reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
+      const monthIncomesTotal = monthIncomes.reduce((sum, inc) => sum + (inc.amountInRSD || inc.amount), 0);
 
       monthlyTrend.push({
         month: date.toLocaleDateString("sr-RS", {
           month: "short",
           year: "numeric",
         }),
-        expenses: monthExpenses._sum.amount || 0,
-        incomes: monthIncomes._sum.amount || 0,
+        expenses: monthExpensesTotal,
+        incomes: monthIncomesTotal,
       });
     }
 
@@ -392,24 +397,24 @@ export async function GET(req: NextRequest) {
     const previousYearStart = new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), 1);
     const previousYearEnd = new Date(currentDate.getFullYear() - 1, currentDate.getMonth() + 1, 0, 23, 59, 59);
 
-    const currentYearExpenses = await prisma.expense.aggregate({
+    const currentYearExpenses = await prisma.expense.findMany({
       where: {
         userId: { in: memberUserIds },
         date: { gte: currentYearStart < groupCreatedDate ? groupCreatedDate : currentYearStart, lte: currentYearEnd },
       },
-      _sum: { amount: true },
+      select: { amount: true, amountInRSD: true },
     });
 
-    const previousYearExpenses = await prisma.expense.aggregate({
+    const previousYearExpenses = await prisma.expense.findMany({
       where: {
         userId: { in: memberUserIds },
         date: { gte: previousYearStart < groupCreatedDate ? groupCreatedDate : previousYearStart, lte: previousYearEnd },
       },
-      _sum: { amount: true },
+      select: { amount: true, amountInRSD: true },
     });
 
-    const currentYearTotal = currentYearExpenses._sum.amount || 0;
-    const previousYearTotal = previousYearExpenses._sum.amount || 0;
+    const currentYearTotal = currentYearExpenses.reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
+    const previousYearTotal = previousYearExpenses.reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
     const yoyPercentageChange = previousYearTotal > 0 
       ? ((currentYearTotal - previousYearTotal) / previousYearTotal) * 100 
       : 0;
@@ -418,42 +423,42 @@ export async function GET(req: NextRequest) {
     const prevMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
     const prevMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0, 23, 59, 59);
 
-    const currentMonthExpenses = await prisma.expense.aggregate({
+    const currentMonthExpenses = await prisma.expense.findMany({
       where: {
         userId: { in: memberUserIds },
         date: { gte: currentYearStart < groupCreatedDate ? groupCreatedDate : currentYearStart, lte: currentYearEnd },
       },
-      _sum: { amount: true },
+      select: { amount: true, amountInRSD: true },
     });
 
-    const previousMonthExpenses = await prisma.expense.aggregate({
+    const previousMonthExpenses = await prisma.expense.findMany({
       where: {
         userId: { in: memberUserIds },
         date: { gte: prevMonthStart < groupCreatedDate ? groupCreatedDate : prevMonthStart, lte: prevMonthEnd },
       },
-      _sum: { amount: true },
+      select: { amount: true, amountInRSD: true },
     });
 
-    const currentMonthIncomes = await prisma.income.aggregate({
+    const currentMonthIncomes = await prisma.income.findMany({
       where: {
         userId: { in: memberUserIds },
         date: { gte: currentYearStart < groupCreatedDate ? groupCreatedDate : currentYearStart, lte: currentYearEnd },
       },
-      _sum: { amount: true },
+      select: { amount: true, amountInRSD: true },
     });
 
-    const previousMonthIncomes = await prisma.income.aggregate({
+    const previousMonthIncomes = await prisma.income.findMany({
       where: {
         userId: { in: memberUserIds },
         date: { gte: prevMonthStart < groupCreatedDate ? groupCreatedDate : prevMonthStart, lte: prevMonthEnd },
       },
-      _sum: { amount: true },
+      select: { amount: true, amountInRSD: true },
     });
 
-    const momExpenses = currentMonthExpenses._sum.amount || 0;
-    const momPrevExpenses = previousMonthExpenses._sum.amount || 0;
-    const momIncomes = currentMonthIncomes._sum.amount || 0;
-    const momPrevIncomes = previousMonthIncomes._sum.amount || 0;
+    const momExpenses = currentMonthExpenses.reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
+    const momPrevExpenses = previousMonthExpenses.reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
+    const momIncomes = currentMonthIncomes.reduce((sum, inc) => sum + (inc.amountInRSD || inc.amount), 0);
+    const momPrevIncomes = previousMonthIncomes.reduce((sum, inc) => sum + (inc.amountInRSD || inc.amount), 0);
     const momExpensesChange = momPrevExpenses > 0 ? ((momExpenses - momPrevExpenses) / momPrevExpenses) * 100 : 0;
     const momIncomesChange = momPrevIncomes > 0 ? ((momIncomes - momPrevIncomes) / momPrevIncomes) * 100 : 0;
     const momBalance = momIncomes - momExpenses;
@@ -468,7 +473,7 @@ export async function GET(req: NextRequest) {
 
     expenses.forEach((exp) => {
       const hour = new Date(exp.date).getHours();
-      hourlyExpenses[hour].amount += exp.amount;
+      hourlyExpenses[hour].amount += (exp.amountInRSD || exp.amount);
     });
 
     // Last 30 Days - Poslednja 30 dana
@@ -484,14 +489,14 @@ export async function GET(req: NextRequest) {
           const expDate = new Date(exp.date);
           return expDate >= dayStart && expDate <= dayEnd;
         })
-        .reduce((sum, exp) => sum + exp.amount, 0);
+        .reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
 
       const dayIncomes = incomes
         .filter((inc) => {
           const incDate = new Date(inc.date);
           return incDate >= dayStart && incDate <= dayEnd;
         })
-        .reduce((sum, inc) => sum + inc.amount, 0);
+        .reduce((sum, inc) => sum + (inc.amountInRSD || inc.amount), 0);
 
       last30Days.push({
         date: `${date.getDate()}.${date.getMonth() + 1}`,
@@ -537,8 +542,8 @@ export async function GET(req: NextRequest) {
         const firstHalf = recentExpenses.slice(midPoint);
         const secondHalf = recentExpenses.slice(0, midPoint);
 
-        const firstHalfTotal = firstHalf.reduce((sum, exp) => sum + exp.amount, 0);
-        const secondHalfTotal = secondHalf.reduce((sum, exp) => sum + exp.amount, 0);
+        const firstHalfTotal = firstHalf.reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
+        const secondHalfTotal = secondHalf.reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
 
         const growth = firstHalfTotal > 0
           ? ((secondHalfTotal - firstHalfTotal) / firstHalfTotal) * 100
@@ -571,14 +576,14 @@ export async function GET(req: NextRequest) {
           const expDate = new Date(exp.date);
           return expDate >= effectiveStart && expDate <= monthEnd;
         })
-        .reduce((sum, exp) => sum + exp.amount, 0);
+        .reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
 
       const monthInc = incomes
         .filter((inc) => {
           const incDate = new Date(inc.date);
           return incDate >= effectiveStart && incDate <= monthEnd;
         })
-        .reduce((sum, inc) => sum + inc.amount, 0);
+        .reduce((sum, inc) => sum + (inc.amountInRSD || inc.amount), 0);
 
       if (monthInc > monthExp) {
         monthsInProfit++;
@@ -600,7 +605,7 @@ export async function GET(req: NextRequest) {
       const dayOfWeek = new Date(exp.date).getDay();
       // JavaScript: 0 = Sunday, 1 = Monday
       const index = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      weekdayExpenses[index].amount += exp.amount;
+      weekdayExpenses[index].amount += (exp.amountInRSD || exp.amount);
     });
 
     // Daily Expenses - Troškovi po danima u trenutnom mesecu
@@ -616,7 +621,7 @@ export async function GET(req: NextRequest) {
           const expDate = new Date(exp.date);
           return expDate >= dayStart && expDate <= dayEnd;
         })
-        .reduce((sum, exp) => sum + exp.amount, 0);
+        .reduce((sum, exp) => sum + (exp.amountInRSD || exp.amount), 0);
 
       dailyExpenses.push({
         day: day.toString(),
@@ -626,12 +631,12 @@ export async function GET(req: NextRequest) {
 
     // Top 5 Expenses - Najvećih 5 troškova
     const topExpenses = expenses
-      .sort((a, b) => b.amount - a.amount)
+      .sort((a, b) => (b.amountInRSD || b.amount) - (a.amountInRSD || a.amount))
       .slice(0, 5)
       .map((exp) => ({
         id: exp.id,
         description: exp.description,
-        amount: exp.amount,
+        amount: exp.amountInRSD || exp.amount,
         category: exp.category.name,
         icon: exp.category.icon,
         date: new Date(exp.date).toLocaleDateString("sr-RS"),

@@ -17,9 +17,35 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const monthParam = searchParams.get("month");
   const yearParam = searchParams.get("year");
+  const groupFilter = searchParams.get("groupFilter"); // 'all' | 'personal' | groupId
+
+  // Get user's active group
+  const userWithGroup = await prisma.user.findUnique({
+    where: { id: user.userId },
+    select: { activeGroupId: true }
+  })
 
   let whereClause: any = {
     userId: user.userId,
+  }
+
+  // Filter by group context
+  if (groupFilter === 'all') {
+    // Show all incomes (no group filter)
+  } else if (groupFilter === 'personal') {
+    // Show only personal incomes (no group)
+    whereClause.groupId = null
+  } else if (groupFilter && groupFilter !== 'null') {
+    // Show incomes for specific group
+    whereClause.groupId = groupFilter
+  } else {
+    // Default behavior: if user has active group, show ONLY that group's incomes
+    // Otherwise show personal incomes (groupId: null)
+    if (userWithGroup?.activeGroupId) {
+      whereClause.groupId = userWithGroup.activeGroupId
+    } else {
+      whereClause.groupId = null
+    }
   }
 
   // If month and year are provided, filter by date range

@@ -11,6 +11,7 @@ interface ReceiptUploaderProps {
     items?: string[];
     description?: string;
     categoryId?: string;
+    vendorName?: string;
   }) => void;
   categories?: Array<{ id: string; name: string }>;
 }
@@ -112,16 +113,24 @@ export default function ReceiptUploader({ onUploadComplete, categories = [] }: R
         setOcrStatus("success");
         setOcrResult(data.extractedData);
         
+        console.log("📦 OCR extractedData:", data.extractedData);
+        console.log("🏷️ suggestedCategory:", data.extractedData.suggestedCategory);
+        
         // Automatski pronađi kategoriju iz OCR sugestije
         if (data.extractedData.suggestedCategory && categories.length > 0) {
+          console.log("🔍 Looking for category match...");
+          console.log("📋 Available categories:", categories.map(c => `${c.name} (${c.id})`).join(', '));
+          
           let matched;
           
-          // Ako je suggestedCategory objekat sa id i name (iz user history)
+          // Ako je suggestedCategory objekat sa id i name
           if (typeof data.extractedData.suggestedCategory === 'object') {
+            console.log("🔍 Matching by ID:", data.extractedData.suggestedCategory.id);
             matched = categories.find(cat => cat.id === data.extractedData.suggestedCategory.id);
           } 
-          // Ako je suggestedCategory string (iz known vendors)
+          // Ako je suggestedCategory string (legacy)
           else if (typeof data.extractedData.suggestedCategory === 'string') {
+            console.log("🔍 Matching by name:", data.extractedData.suggestedCategory);
             matched = categories.find(cat => 
               cat.name.toLowerCase() === data.extractedData.suggestedCategory.toLowerCase()
             );
@@ -129,8 +138,12 @@ export default function ReceiptUploader({ onUploadComplete, categories = [] }: R
           
           if (matched) {
             setMatchedCategory(matched.name);
-            console.log(`✅ Auto-selected category: "${matched.name}"`);
+            console.log(`✅ Category matched: "${matched.name}"`);
+          } else {
+            console.log(`❌ No matching category found!`);
           }
+        } else {
+          console.log(`⚠️ No suggestedCategory in response or no categories available`);
         }
         
         // Prikaži rezultate nakon kratke pauze
@@ -183,11 +196,11 @@ export default function ReceiptUploader({ onUploadComplete, categories = [] }: R
       if (ocrResult.suggestedCategory && categories.length > 0) {
         let matched;
         
-        // Ako je suggestedCategory objekat sa id i name (iz user history)
+        // Ako je suggestedCategory objekat sa id i name
         if (typeof ocrResult.suggestedCategory === 'object') {
           matched = categories.find(cat => cat.id === ocrResult.suggestedCategory.id);
         } 
-        // Ako je suggestedCategory string (iz known vendors)
+        // Ako je suggestedCategory string (legacy)
         else if (typeof ocrResult.suggestedCategory === 'string') {
           matched = categories.find(cat => 
             cat.name.toLowerCase() === ocrResult.suggestedCategory.toLowerCase()
@@ -199,20 +212,21 @@ export default function ReceiptUploader({ onUploadComplete, categories = [] }: R
           matchedCategoryName = matched.name;
           console.log(`✅ Confirmed category: "${matchedCategoryName}" (${categoryId})`);
           
-          // Sačuvaj vendor→category mapiranje za buduće račune
+          // Learn from user's choice - this was a correct suggestion
           if (ocrResult.vendorName) {
             try {
-              await fetch('/api/vendor-category', {
-                method: 'POST',
+              await fetch('/api/expenses/suggest-category', {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   vendorName: ocrResult.vendorName,
                   categoryId: categoryId,
+                  wasCorrectSuggestion: true, // User accepted the suggestion
                 }),
               });
-              console.log(`💾 Saved mapping: ${ocrResult.vendorName} → ${matchedCategoryName}`);
+              console.log(`💾 Learned: ${ocrResult.vendorName} → ${matchedCategoryName} (correct suggestion)`);
             } catch (error) {
-              console.error('Failed to save vendor-category mapping:', error);
+              console.error('Failed to record learning:', error);
             }
           }
         }
@@ -224,6 +238,7 @@ export default function ReceiptUploader({ onUploadComplete, categories = [] }: R
         items: ocrResult.items,
         description: ocrResult.description,
         categoryId: categoryId,
+        vendorName: ocrResult.vendorName, // Pass vendor for learning
       });
       setShowPreviewModal(false);
       clearPreview();
@@ -378,13 +393,13 @@ export default function ReceiptUploader({ onUploadComplete, categories = [] }: R
                   <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-xl p-4 border border-emerald-500/30">
                     <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wide flex items-center gap-1 mb-1">
                       <Check size={12} weight="bold" className="text-emerald-400" />
-                      {typeof ocrResult.suggestedCategory === 'object' ? 'Tvoj omiljeni izbor' : 'Detektovana kategorija'}
+                      {ocrResult.suggestedCategory?.isUserPreference ? 'Tvoj omiljeni izbor' : 'Predložena kategorija'}
                     </span>
                     <p className="text-lg font-bold text-white">{matchedCategory}</p>
                     <p className="text-xs text-gray-400 mt-2 italic">
-                      {typeof ocrResult.suggestedCategory === 'object' 
+                      {ocrResult.suggestedCategory?.isUserPreference
                         ? `Prošli put si izabrao "${matchedCategory}" za ovaj račun. Klikni "Potvrdi" da sačuvaš u istoj kategoriji.`
-                        : 'Ako želiš, ova kategorija će biti automatski primenjena kada klikneš "Potvrdi"'
+                        : `Aplikacija je prepoznala "${matchedCategory}" za ovaj račun. Ako želiš, ova kategorija će biti automatski primenjena kada klikneš "Potvrdi".`
                       }
                     </p>
                   </div>

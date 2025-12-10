@@ -365,6 +365,7 @@ export default function GroupsPage() {
                 setShowCreateModal(false);
                 addToast("Grupa uspešno kreirana!", "success");
                 fetchGroupData();
+                fetchActiveGroup();
               }}
             />
           </>
@@ -971,6 +972,7 @@ export default function GroupsPage() {
               setShowCreateModal(false);
               addToast("Grupa uspešno kreirana!", "success");
               fetchGroupData();
+              fetchActiveGroup();
             }}
           />
         </>

@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { getUser } from "@/lib/auth";
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { processOCRText, normalizeVendor, suggestCategoryFromContext } from '@/lib/ocr-utils';
+import { suggestCategory } from '@/lib/categorySuggestion';
 import heicConvert from 'heic-convert';
 
 const prisma = new PrismaClient();
@@ -233,100 +234,55 @@ export async function POST(req: NextRequest) {
       // Process text with our utility functions
       const ocrResult = processOCRText(extractedText);
 
-      // Normalize vendor name and get suggested category
-      let suggestedCategoryFromKnownVendors: string | undefined;
+      // Use new intelligent category suggestion system
       let suggestedCategoryObject: any = null;
       
-      if (ocrResult.vendor) {
-        const normalized = normalizeVendor(ocrResult.vendor);
-        ocrResult.vendor = normalized.name;
-        
-        // Category from known vendors database
-        if (normalized.category) {
-          suggestedCategoryFromKnownVendors = normalized.category;
-        }
+      console.log(`🤖 Using new ML-based category suggestion system...`);
+      console.log(`📝 OCR extracted vendor: "${ocrResult.vendor}"`);
+      console.log(`📄 Text length: ${extractedText.length} chars`);
+      
+      // Call the new suggestion engine with OCR text
+      const suggestion = await suggestCategory(
+        user.userId,
+        extractedText,
+        ocrResult.vendor
+      );
 
-        // Check if user has saved this vendor before
-        const userMapping = await prisma.vendorCategoryMapping.findUnique({
-          where: {
-            userId_vendorName: {
-              userId: user.userId,
-              vendorName: normalized.name,
-            },
-          },
-          include: {
-            category: true,
-          },
+      console.log(`🔍 Suggestion result:`, suggestion);
+
+      if (suggestion) {
+        console.log(`✅ Category suggested: "${suggestion.categoryName}" (confidence: ${(suggestion.confidence * 100).toFixed(0)}%, source: ${suggestion.source})`);
+        
+        // Fetch full category details
+        const category = await prisma.category.findUnique({
+          where: { id: suggestion.categoryId },
         });
 
-        if (userMapping) {
+        console.log(`🔍 Category lookup for ID ${suggestion.categoryId}:`, category ? `Found: ${category.name}` : 'NOT FOUND');
+
+        if (category) {
           suggestedCategoryObject = {
-            id: userMapping.category.id,
-            name: userMapping.category.name,
-            icon: userMapping.category.icon,
-            color: userMapping.category.color,
-            isUserPreference: true,
+            id: category.id,
+            name: category.name,
+            icon: category.icon,
+            color: category.color,
+            confidence: suggestion.confidence,
+            source: suggestion.source,
+            isUserPreference: suggestion.source === 'user_learning',
+            vendorName: suggestion.vendorName,
           };
-          console.log(`📌 User previously used category "${userMapping.category.name}" for vendor "${normalized.name}" (${userMapping.usageCount}x)`);
-        } else if (suggestedCategoryFromKnownVendors) {
-          // Find category by name from known vendors
-          const category = await prisma.category.findFirst({
-            where: {
-              userId: user.userId,
-              name: suggestedCategoryFromKnownVendors,
-            },
-          });
           
-          if (category) {
-            suggestedCategoryObject = {
-              id: category.id,
-              name: category.name,
-              icon: category.icon,
-              color: category.color,
-              isUserPreference: false,
-            };
+          console.log(`✅ Final suggestion object:`, suggestedCategoryObject);
+          
+          // Update vendor name from suggestion if available
+          if (suggestion.vendorName) {
+            ocrResult.vendor = suggestion.vendorName;
           }
+        } else {
+          console.log(`❌ Category ID ${suggestion.categoryId} not found in database!`);
         }
-        
-        // If still no category, try context-based suggestion
-        if (!suggestedCategoryObject) {
-          console.log(`🔍 Analyzing context for vendor "${normalized.name}"...`);
-          console.log(`📄 Receipt text preview: ${extractedText.substring(0, 200)}...`);
-          
-          const contextCategory = suggestCategoryFromContext(extractedText, normalized.name);
-          console.log(`🎯 Context analysis result: "${contextCategory}"`);
-          
-          if (contextCategory) {
-            // First, check what categories exist for this user
-            const allCategories = await prisma.category.findMany({
-              where: { userId: user.userId },
-              select: { name: true }
-            });
-            console.log(`📋 Available categories:`, allCategories.map(c => c.name).join(', '));
-            
-            const category = await prisma.category.findFirst({
-              where: {
-                userId: user.userId,
-                name: contextCategory,
-              },
-            });
-            
-            if (category) {
-              suggestedCategoryObject = {
-                id: category.id,
-                name: category.name,
-                icon: category.icon,
-                color: category.color,
-                isUserPreference: false,
-              };
-              console.log(`✅ AI suggested category "${contextCategory}" based on context analysis`);
-            } else {
-              console.log(`❌ Category "${contextCategory}" not found in user's categories`);
-            }
-          } else {
-            console.log(`⚠️ No category could be determined from context`);
-          }
-        }
+      } else {
+        console.log(`⚠️ No category suggestion found`);
       }
 
       // Format data for compatibility with existing ReceiptUploader

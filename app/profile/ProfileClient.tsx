@@ -23,7 +23,7 @@ import {
   CalendarBlank
 } from "phosphor-react"
 import { useToast } from "@/hooks/useToast"
-import HelpButton from "@/components/HelpButton"
+import ModernHelpButton from "@/components/ModernHelpButton"
 
 type UserType = {
   id: string
@@ -145,7 +145,12 @@ export default function ProfileClient({ user }: { user: UserType }) {
         setDateFormat(data.dateFormat || "dd.MM.yyyy")
         setNotifications(data.notifications ?? true)
         setRecurringNotifications(data.recurringNotifications ?? true)
-        setAiAssistantEnabled(data.aiAssistantEnabled ?? true)
+        const aiEnabled = data.aiAssistantEnabled ?? true
+        setAiAssistantEnabled(aiEnabled)
+        // Sync localStorage with API data
+        localStorage.setItem("ai_assistant_enabled", aiEnabled.toString())
+        // Trigger storage event to update other components
+        window.dispatchEvent(new Event('storage'))
       }
 
       if (styleRes.ok) {
@@ -423,23 +428,27 @@ export default function ProfileClient({ user }: { user: UserType }) {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8" style={{paddingTop: '24px'}}>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span>Nazad</span>
-          </button>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2" style={{
+              background: 'linear-gradient(135deg, #A64DFF, #4DB2FF)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Profil
+            </h1>
+            <p className="text-white/50">Upravljajte svojim nalogom i podešavanjima</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <ModernHelpButton page="profile" />
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <ArrowLeft size={20} />
+              <span>Nazad</span>
+            </button>
+          </div>
         </div>
-
-        <h1 className="text-3xl md:text-4xl font-bold mb-2" style={{
-          background: 'linear-gradient(135deg, #A64DFF, #4DB2FF)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent'
-        }}>
-          Profil
-        </h1>
-        <p className="text-white/50 mb-8">Upravljajte svojim nalogom i podešavanjima</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* SEKCIJA 1: Lični podaci */}
@@ -1478,9 +1487,6 @@ export default function ProfileClient({ user }: { user: UserType }) {
           </div>
         )}
       </div>
-
-      {/* Help Button */}
-      <HelpButton page="profile" />
     </div>
   )
 }

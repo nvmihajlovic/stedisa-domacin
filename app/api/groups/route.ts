@@ -205,12 +205,16 @@ export async function POST(req: NextRequest) {
         }
       });
 
-      // If this is the user's first group or if it's temporary, set as active
-      const userRecord = await tx.user.findUnique({
-        where: { id: user.userId }
+      // Check if user has any other groups
+      const userGroups = await tx.group.count({
+        where: { 
+          ownerId: user.userId,
+          id: { not: newGroup.id }
+        }
       });
 
-      if (!userRecord?.activeGroupId || type === "TEMPORARY") {
+      // If this is the user's first group, set it as active
+      if (userGroups === 0) {
         await tx.user.update({
           where: { id: user.userId },
           data: { activeGroupId: newGroup.id }

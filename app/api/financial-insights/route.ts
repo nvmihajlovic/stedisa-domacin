@@ -79,6 +79,60 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Fetch budgets
+    const budgets = await prisma.budget.findMany({
+      where: {
+        userId: user.userId,
+      },
+      include: {
+        category: true,
+      },
+    });
+
+    // Fetch user groups
+    const userGroups = await prisma.groupMember.findMany({
+      where: {
+        userId: user.userId,
+      },
+      include: {
+        group: {
+          include: {
+            expenses: {
+              where: {
+                date: { gte: currentMonthStart },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Fetch settlements
+    const settlements = await prisma.settlement.findMany({
+      where: {
+        OR: [
+          { fromUserId: user.userId },
+          { toUserId: user.userId },
+        ],
+        status: 'pending',
+      },
+    });
+
+    // Fetch savings goals
+    const savingsGoals = await prisma.savingsGoal.findMany({
+      where: {
+        userId: user.userId,
+        isActive: true,
+      },
+      include: {
+        contributions: {
+          where: {
+            createdAt: { gte: currentMonthStart },
+          },
+        },
+      },
+    });
+
     // Calculate totals
     const currentMonthExpenses = currentExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     const lastMonthExpenses = lastExpenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -157,6 +211,61 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Calculate budget utilization
+    const budgetData = budgets.map(budget => {
+      const categoryExpenses = currentExpenses
+        .filter(exp => exp.categoryId === budget.categoryId)
+        .reduce((sum, exp) => sum + exp.amount, 0);
+      
+      const utilization = (categoryExpenses / budget.amount) * 100;
+      
+      return {
+        categoryName: budget.category?.name || 'Unknown',
+        budgetAmount: budget.amount,
+        spent: categoryExpenses,
+        remaining: budget.amount - categoryExpenses,
+        utilization,
+        period: budget.period,
+      };
+    });
+
+    // Calculate group expenses
+    const groupExpensesData = userGroups.map(member => ({
+      groupId: member.group.id,
+      groupName: member.group.name,
+      monthlyExpenses: member.group.expenses.reduce((sum, exp) => sum + exp.amount, 0),
+      expenseCount: member.group.expenses.length,
+    }));
+
+    // Calculate settlement data
+    const settlementData = {
+      pendingSettlements: settlements.length,
+      toReceive: settlements
+        .filter(s => s.toUserId === user.userId)
+        .reduce((sum, s) => sum + s.amount, 0),
+      toPay: settlements
+        .filter(s => s.fromUserId === user.userId)
+        .reduce((sum, s) => sum + s.amount, 0),
+    };
+
+    // Calculate savings goals progress
+    const savingsGoalsData = savingsGoals.map(goal => {
+      const monthlyContributions = goal.contributions.reduce((sum, c) => sum + c.amount, 0);
+      const progress = (goal.currentAmount / goal.targetAmount) * 100;
+      const remaining = goal.targetAmount - goal.currentAmount;
+      
+      return {
+        name: goal.name,
+        targetAmount: goal.targetAmount,
+        currentAmount: goal.currentAmount,
+        progress,
+        remaining,
+        monthlyContributions,
+        isRecurring: goal.isRecurring,
+        recurringAmount: goal.recurringAmount,
+      };
+    });
+
     // Prepare data for AI advisor
     const financialData: FinancialData = {
       currentMonthExpenses,
@@ -169,6 +278,10 @@ export async function GET(request: NextRequest) {
       unusualExpenses,
       savingsRate,
       topSpendingDay,
+      budgets: budgetData,
+      groups: groupExpensesData,
+      settlements: settlementData,
+      savingsGoals: savingsGoalsData,
     };
 
     // Generate insights using AI advisor
@@ -183,6 +296,10 @@ export async function GET(request: NextRequest) {
         savingsRate: savingsRate.toFixed(1),
         expenseCount: currentExpenses.length,
         incomeCount: currentIncomes.length,
+        budgetsCount: budgets.length,
+        groupsCount: userGroups.length,
+        settlementsCount: settlements.length,
+        savingsGoalsCount: savingsGoals.length,
       },
       fromCache: false,
     };

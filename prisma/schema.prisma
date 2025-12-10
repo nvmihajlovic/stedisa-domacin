@@ -46,6 +46,8 @@ model User {
   ocrLogs                 OCRLog[]
   recurringExpenses       RecurringExpense[]
   recurringIncomes        RecurringIncome[]
+  savingsGoals            SavingsGoal[]
+  savingsContributions    SavingsContribution[]
   splitsOwedBy            Split[]                 @relation("SplitOwedBy")
   splitsPaidBy            Split[]                 @relation("SplitPaidBy")
   activeGroup             Group?                  @relation("ActiveGroup", fields: [activeGroupId], references: [id])
@@ -58,6 +60,7 @@ model Category {
   icon           String?
   color          String?
   isActive       Boolean                 @default(true)
+  isSavings      Boolean                 @default(false)
   parentId       String?
   userId         String
   createdAt      DateTime                @default(now())
@@ -66,6 +69,7 @@ model Category {
   parent         Category?               @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children       Category[]              @relation("CategoryHierarchy")
   expenses       Expense[]
+  savingsGoals   SavingsGoal[]
   vendorMappings VendorCategoryMapping[]
 
   @@unique([userId, name])
@@ -87,29 +91,30 @@ model IncomeCategory {
 }
 
 model Expense {
-  id                 String            @id @default(cuid())
-  amount             Float
-  amountInRSD        Float?
-  description        String
-  date               DateTime
-  categoryId         String
-  userId             String
-  receiptUrl         String?
-  isRecurring        Boolean           @default(false)
-  recurringExpenseId String?
-  groupId            String?
-  splitAmount        Float?
-  paidBy             String?
-  currency           String?
-  note               String?
-  paymentMethod      String?           @default("cash")
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  group              Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id])
-  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category           Category          @relation(fields: [categoryId], references: [id])
-  splits             Split[]
+  id                   String                 @id @default(cuid())
+  amount               Float
+  amountInRSD          Float?
+  description          String
+  date                 DateTime
+  categoryId           String
+  userId               String
+  receiptUrl           String?
+  isRecurring          Boolean                @default(false)
+  recurringExpenseId   String?
+  groupId              String?
+  splitAmount          Float?
+  paidBy               String?
+  currency             String?
+  note                 String?
+  paymentMethod        String?                @default("cash")
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  group                Group?                 @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  recurringExpense     RecurringExpense?      @relation(fields: [recurringExpenseId], references: [id])
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category             Category               @relation(fields: [categoryId], references: [id])
+  splits               Split[]
+  savingsContributions SavingsContribution[]
 }
 
 model Income {
@@ -128,7 +133,7 @@ model Income {
   note                String?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
-  group               Group?           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group               Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
   recurringIncome     RecurringIncome? @relation(fields: [recurringIncomeId], references: [id])
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   category            IncomeCategory   @relation(fields: [categoryId], references: [id])
@@ -170,25 +175,27 @@ model RecurringIncome {
 }
 
 model Group {
-  id           String        @id @default(cuid())
-  name         String
-  description  String?
-  type         GroupType     @default(PERMANENT)
-  durationType DurationType?
-  startDate    DateTime?
-  endDate      DateTime?
-  isActive     Boolean       @default(true)
-  ownerId      String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  budgets      Budget[]
-  expenses     Expense[]
-  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  members      GroupMember[]
-  incomes      Income[]
-  settlements  Settlement[]
-  splits       Split[]
-  activeUsers  User[]        @relation("ActiveGroup")
+  id                   String                 @id @default(cuid())
+  name                 String
+  description          String?
+  type                 GroupType              @default(PERMANENT)
+  durationType         DurationType?
+  startDate            DateTime?
+  endDate              DateTime?
+  isActive             Boolean                @default(true)
+  ownerId              String
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  budgets              Budget[]
+  expenses             Expense[]
+  owner                User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members              GroupMember[]
+  incomes              Income[]
+  savingsGoals         SavingsGoal[]
+  settlements          Settlement[]
+  splits               Split[]
+  activeUsers          User[]                 @relation("ActiveGroup")
+  savingsContributions SavingsContribution[]
 }
 
 model GroupMember {
@@ -284,6 +291,7 @@ model VendorCategoryMapping {
   vendorName String
   categoryId String
   usageCount Int      @default(1)
+  confidence Float    @default(1.0)
   lastUsedAt DateTime @default(now())
   createdAt  DateTime @default(now())
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -292,6 +300,7 @@ model VendorCategoryMapping {
   @@unique([userId, vendorName])
   @@index([userId])
   @@index([vendorName])
+  @@index([userId, usageCount])
 }
 
 model Budget {
@@ -347,4 +356,58 @@ enum DurationType {
   DAYS_30
   YEAR_1
   CUSTOM
+}
+
+model SavingsGoal {
+  id                   String                @id @default(cuid())
+  userId               String
+  groupId              String?
+  name                 String
+  targetAmount         Float
+  currentAmount        Float                 @default(0)
+  currency             String                @default("RSD")
+  categoryId           String
+  period               String                @default("monthly")
+  targetDate           DateTime?
+  isRecurring          Boolean               @default(false)
+  recurringFrequency   String?
+  recurringDayOfMonth  Int?
+  recurringAmount      Float?
+  isActive             Boolean               @default(true)
+  color                String                @default("#FFD700")
+  icon                 String                @default("CurrencyDollar")
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category             Category              @relation(fields: [categoryId], references: [id])
+  group                Group?                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  contributions        SavingsContribution[]
+
+  @@index([userId])
+  @@index([groupId])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model SavingsContribution {
+  id            String      @id @default(cuid())
+  savingsGoalId String
+  userId        String
+  groupId       String?
+  expenseId     String?
+  amount        Float
+  currency      String      @default("RSD")
+  description   String?
+  isAutomatic   Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  savingsGoal   SavingsGoal @relation(fields: [savingsGoalId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group         Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense       Expense?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([savingsGoalId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([groupId])
+  @@index([expenseId])
 }

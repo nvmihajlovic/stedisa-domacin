@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, TrendUp, TrendDown, Wallet, ChartLine, ChartPie, ChartBar, CaretLeft, CaretRight } from "phosphor-react"
+import { ArrowLeft, TrendUp, TrendDown, Wallet, ChartLine, ChartPie, ChartBar, CaretLeft, CaretRight, Users } from "phosphor-react"
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { getIcon } from "@/lib/iconMapping"
-import HelpButton from "@/components/HelpButton"
+import ModernHelpButton from "@/components/ModernHelpButton"
 
 interface MonthlyStats {
   totalExpenses: number
@@ -32,6 +32,7 @@ interface TopExpense {
   id: number
   description: string
   amount: number
+  currency: string
   category: string
   icon: string
   date: string
@@ -63,6 +64,28 @@ export default function StatisticsClient({ user }: { user: User }) {
   const [categoryGrowth, setCategoryGrowth] = useState<any[]>([])
   const [monthsInProfit, setMonthsInProfit] = useState(0)
   const [weekdayExpenses, setWeekdayExpenses] = useState<any[]>([])
+  
+  // NEW: Extended metrics
+  const [extendedMetrics, setExtendedMetrics] = useState({
+    avgDailyExpenses: 0,
+    avgDailyIncomes: 0,
+    savingsRate: 0,
+    recurringExpenses: { count: 0, amount: 0 },
+    recurringIncomes: { count: 0, amount: 0 },
+    currencyExposure: [] as Array<{ currency: string; amount: number; percentage: number }>,
+    avgExpenseAmount: 0,
+    avgIncomeAmount: 0,
+    transactionCount: { expenses: 0, incomes: 0, total: 0 }
+  })
+  
+  const [groupStats, setGroupStats] = useState<{
+    isInGroup: boolean;
+    groupName: string;
+    userContribution: number;
+    userPercentage: number;
+    totalGroupExpenses: number;
+    memberCount: number;
+  } | null>(null)
   
   // YoY comparison data
   const [yoyData, setYoyData] = useState({
@@ -157,8 +180,9 @@ export default function StatisticsClient({ user }: { user: User }) {
         incomes: incomesData.length 
       })
 
-      const totalExpenses = expensesData.reduce((sum: number, exp: any) => sum + exp.amount, 0)
-      const totalIncomes = incomesData.reduce((sum: number, inc: any) => sum + inc.amount, 0)
+      // Koristi konvertovane vrednosti za tačne statistike
+      const totalExpenses = expensesData.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
+      const totalIncomes = incomesData.reduce((sum: number, inc: any) => sum + (inc.amountInRSD || inc.amount), 0)
       
       setStats({
         totalExpenses,
@@ -194,8 +218,8 @@ export default function StatisticsClient({ user }: { user: User }) {
           return incDate.getMonth() + 1 === m && incDate.getFullYear() === y
         })
         
-        const expTotal = exp.reduce((sum: number, e: any) => sum + e.amount, 0)
-        const incTotal = inc.reduce((sum: number, i: any) => sum + i.amount, 0)
+        const expTotal = exp.reduce((sum: number, e: any) => sum + (e.amountInRSD || e.amount), 0)
+        const incTotal = inc.reduce((sum: number, i: any) => sum + (i.amountInRSD || i.amount), 0)
         
         totalExpSum += expTotal
         totalIncSum += incTotal
@@ -218,10 +242,11 @@ export default function StatisticsClient({ user }: { user: User }) {
         const categoryIcon = exp.category?.icon || 'Question'
         const existing = acc.find((c: any) => c.name === categoryName)
         if (existing) {
-          existing.value += exp.amount
+          // Koristi konvertovanu vrednost za tačno učešće u pie chartu
+          existing.value += (exp.amountInRSD || exp.amount)
         } else {
           const colorIndex = acc.length % pinkPalette.length
-          acc.push({ name: categoryName, value: exp.amount, color: pinkPalette[colorIndex], icon: categoryIcon })
+          acc.push({ name: categoryName, value: (exp.amountInRSD || exp.amount), color: pinkPalette[colorIndex], icon: categoryIcon })
         }
         return acc
       }, [])
@@ -234,10 +259,11 @@ export default function StatisticsClient({ user }: { user: User }) {
         const categoryIcon = inc.category?.icon || 'Question'
         const existing = acc.find((c: any) => c.name === categoryName)
         if (existing) {
-          existing.value += inc.amount
+          // Koristi konvertovanu vrednost za tačno učešće u pie chartu
+          existing.value += (inc.amountInRSD || inc.amount)
         } else {
           const colorIndex = acc.length % tealPalette.length
-          acc.push({ name: categoryName, value: inc.amount, color: tealPalette[colorIndex], icon: categoryIcon })
+          acc.push({ name: categoryName, value: (inc.amountInRSD || inc.amount), color: tealPalette[colorIndex], icon: categoryIcon })
         }
         return acc
       }, [])
@@ -247,7 +273,7 @@ export default function StatisticsClient({ user }: { user: User }) {
       const dailyMap = expensesData.reduce((acc: any, exp: any) => {
         const day = new Date(exp.date).getDate()
         if (!acc[day]) acc[day] = 0
-        acc[day] += exp.amount
+        acc[day] += (exp.amountInRSD || exp.amount)
         return acc
       }, {})
       
@@ -281,7 +307,7 @@ export default function StatisticsClient({ user }: { user: User }) {
       const weekdayMap: any = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
       expensesData.forEach((exp: any) => {
         const day = new Date(exp.date).getDay()
-        weekdayMap[day] += exp.amount
+        weekdayMap[day] += (exp.amountInRSD || exp.amount)
       })
       const weekdayArray = Object.keys(weekdayMap).map(day => ({
         day: dayNames[parseInt(day)],
@@ -301,7 +327,7 @@ export default function StatisticsClient({ user }: { user: User }) {
     const hourlyMap = expensesData.reduce((acc: any, exp: any) => {
       const hour = new Date(exp.createdAt || exp.date).getHours()
       if (!acc[hour]) acc[hour] = 0
-      acc[hour] += exp.amount
+      acc[hour] += (exp.amountInRSD || exp.amount)
       return acc
     }, {})
     const hourlyArray = Array.from({length: 24}, (_, i) => ({
@@ -318,8 +344,8 @@ export default function StatisticsClient({ user }: { user: User }) {
       date.setDate(today.getDate() - i)
       const dateStr = date.toISOString().split('T')[0]
       
-      const dayExpenses = expensesData.filter(e => e.date.startsWith(dateStr)).reduce((sum, e) => sum + e.amount, 0)
-      const dayIncomes = incomesData.filter(e => e.date.startsWith(dateStr)).reduce((sum, e) => sum + e.amount, 0)
+      const dayExpenses = expensesData.filter(e => e.date.startsWith(dateStr)).reduce((sum, e) => sum + (e.amountInRSD || e.amount), 0)
+      const dayIncomes = incomesData.filter(e => e.date.startsWith(dateStr)).reduce((sum, e) => sum + (e.amountInRSD || e.amount), 0)
       
       last30DaysData.push({
         date: `${date.getDate()}.${date.getMonth() + 1}`,
@@ -368,7 +394,7 @@ export default function StatisticsClient({ user }: { user: User }) {
       exp.forEach((e: any) => {
         const catName = e.category?.name || 'Ostalo'
         if (!categoryLast6[catName]) categoryLast6[catName] = []
-        categoryLast6[catName].push(e.amount)
+        categoryLast6[catName].push(e.amountInRSD || e.amount)
       })
     }
     
@@ -401,8 +427,8 @@ export default function StatisticsClient({ user }: { user: User }) {
       const exp = expRes.ok ? await expRes.json() : []
       const inc = incRes.ok ? await incRes.json() : []
       
-      const expTotal = exp.reduce((sum: number, e: any) => sum + e.amount, 0)
-      const incTotal = inc.reduce((sum: number, i: any) => sum + i.amount, 0)
+      const expTotal = exp.reduce((sum: number, e: any) => sum + (e.amountInRSD || e.amount), 0)
+      const incTotal = inc.reduce((sum: number, i: any) => sum + (i.amountInRSD || i.amount), 0)
       
       if (incTotal > expTotal) profitCount++
     }
@@ -412,7 +438,7 @@ export default function StatisticsClient({ user }: { user: User }) {
     const weekdayMap: any = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
     expensesData.forEach(exp => {
       const day = new Date(exp.date).getDay()
-      weekdayMap[day] += exp.amount
+      weekdayMap[day] += (exp.amountInRSD || exp.amount)
     })
     
     const weekdayArray = Object.keys(weekdayMap).map(day => ({
@@ -420,6 +446,115 @@ export default function StatisticsClient({ user }: { user: User }) {
       amount: weekdayMap[day]
     }))
     setWeekdayExpenses(weekdayArray)
+    
+    // 7. NEW: Calculate extended metrics
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
+    const avgDailyExpenses = totalExpenses / daysInMonth
+    const avgDailyIncomes = totalIncomes / daysInMonth
+    
+    // Savings rate (% of income that remains as balance)
+    const savingsRate = totalIncomes > 0 ? (stats.balance / totalIncomes) * 100 : 0
+    
+    // Recurring expenses & incomes
+    const recurringExpensesList = expensesData.filter((exp: any) => exp.recurringExpense)
+    const recurringIncomesList = incomesData.filter((inc: any) => inc.recurringIncome)
+    const recurringExpensesTotal = recurringExpensesList.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
+    const recurringIncomesTotal = recurringIncomesList.reduce((sum: number, inc: any) => sum + (inc.amountInRSD || inc.amount), 0)
+    
+    // Currency exposure
+    const currencyTotals: Record<string, number> = {}
+    expensesData.forEach((exp: any) => {
+      const curr = exp.currency || 'RSD'
+      const amount = exp.amountInRSD || exp.amount
+      currencyTotals[curr] = (currencyTotals[curr] || 0) + amount
+    })
+    incomesData.forEach((inc: any) => {
+      const curr = inc.currency || 'RSD'
+      const amount = inc.amountInRSD || inc.amount
+      currencyTotals[curr] = (currencyTotals[curr] || 0) + amount
+    })
+    
+    const totalAllCurrencies = Object.values(currencyTotals).reduce((sum: number, amt: number) => sum + amt, 0)
+    const currencyExposure = Object.entries(currencyTotals).map(([currency, amount]) => ({
+      currency,
+      amount,
+      percentage: totalAllCurrencies > 0 ? (amount / totalAllCurrencies) * 100 : 0
+    })).sort((a, b) => b.amount - a.amount)
+    
+    // Average amounts per transaction
+    const avgExpenseAmount = expensesData.length > 0 ? totalExpenses / expensesData.length : 0
+    const avgIncomeAmount = incomesData.length > 0 ? totalIncomes / incomesData.length : 0
+    
+    // Transaction counts
+    const transactionCount = {
+      expenses: expensesData.length,
+      incomes: incomesData.length,
+      total: expensesData.length + incomesData.length
+    }
+    
+    console.log('📊 Extended Metrics Calculated:', {
+      avgDailyExpenses,
+      avgDailyIncomes,
+      savingsRate,
+      recurringExpenses: { count: recurringExpensesList.length, amount: recurringExpensesTotal },
+      recurringIncomes: { count: recurringIncomesList.length, amount: recurringIncomesTotal },
+      currencyExposure,
+      transactionCount
+    })
+    
+    setExtendedMetrics({
+      avgDailyExpenses,
+      avgDailyIncomes,
+      savingsRate,
+      recurringExpenses: { count: recurringExpensesList.length, amount: recurringExpensesTotal },
+      recurringIncomes: { count: recurringIncomesList.length, amount: recurringIncomesTotal },
+      currencyExposure,
+      avgExpenseAmount,
+      avgIncomeAmount,
+      transactionCount
+    })
+    
+    // 8. NEW: Fetch group spending stats (only if user is in a group)
+    try {
+      const groupsRes = await fetch('/api/groups/user')
+      if (groupsRes.ok) {
+        const userGroups = await groupsRes.json()
+        if (userGroups && userGroups.length > 0) {
+          const activeGroup = userGroups[0] // Assume first group is active
+          
+          // Fetch group expenses for current month
+          const groupExpensesRes = await fetch(`/api/expenses?month=${currentMonth}&year=${currentYear}&groupId=${activeGroup.id}`)
+          if (groupExpensesRes.ok) {
+            const groupExpenses = await groupExpensesRes.json()
+            
+            // Calculate user's contribution
+            const userExpenses = groupExpenses.filter((exp: any) => exp.userId === user.id)
+            const userContribution = userExpenses.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
+            const totalGroupExpenses = groupExpenses.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
+            const userPercentage = totalGroupExpenses > 0 ? (userContribution / totalGroupExpenses) * 100 : 0
+            
+            // Get member count
+            const groupDetailsRes = await fetch(`/api/groups/${activeGroup.id}`)
+            const groupDetails = groupDetailsRes.ok ? await groupDetailsRes.json() : null
+            const memberCount = groupDetails?.members?.length || 1
+            
+            setGroupStats({
+              isInGroup: true,
+              groupName: activeGroup.name,
+              userContribution,
+              userPercentage,
+              totalGroupExpenses,
+              memberCount
+            })
+          }
+        } else {
+          setGroupStats(null)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching group stats:', error)
+      setGroupStats(null)
+    }
   }
 
   const fetchYoYComparison = async () => {
@@ -427,12 +562,12 @@ export default function StatisticsClient({ user }: { user: User }) {
       // Fetch current year data (same month, current year)
       const currentYearRes = await fetch(`/api/expenses?month=${currentMonth}&year=${currentYear}`)
       const currentYearData = currentYearRes.ok ? await currentYearRes.json() : []
-      const currentYearTotal = currentYearData.reduce((sum: number, exp: any) => sum + exp.amount, 0)
+      const currentYearTotal = currentYearData.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
 
       // Fetch previous year data (same month, previous year)
       const previousYearRes = await fetch(`/api/expenses?month=${currentMonth}&year=${currentYear - 1}`)
       const previousYearData = previousYearRes.ok ? await previousYearRes.json() : []
-      const previousYearTotal = previousYearData.reduce((sum: number, exp: any) => sum + exp.amount, 0)
+      const previousYearTotal = previousYearData.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
 
       // Calculate percentage change
       const percentageChange = previousYearTotal === 0 
@@ -448,7 +583,7 @@ export default function StatisticsClient({ user }: { user: User }) {
         
         const expRes = await fetch(`/api/expenses?month=${m}&year=${y}`)
         const exp = expRes.ok ? await expRes.json() : []
-        const total = exp.reduce((sum: number, e: any) => sum + e.amount, 0)
+        const total = exp.reduce((sum: number, e: any) => sum + (e.amountInRSD || e.amount), 0)
         monthlyTrend.push(total)
       }
 
@@ -471,8 +606,8 @@ export default function StatisticsClient({ user }: { user: User }) {
       const currentExpData = currentExpRes.ok ? await currentExpRes.json() : []
       const currentIncData = currentIncRes.ok ? await currentIncRes.json() : []
       
-      const currentMonthExpenses = currentExpData.reduce((sum: number, exp: any) => sum + exp.amount, 0)
-      const currentMonthIncomes = currentIncData.reduce((sum: number, inc: any) => sum + inc.amount, 0)
+      const currentMonthExpenses = currentExpData.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
+      const currentMonthIncomes = currentIncData.reduce((sum: number, inc: any) => sum + (inc.amountInRSD || inc.amount), 0)
       const currentMonthBalance = currentMonthIncomes - currentMonthExpenses
 
       // Calculate previous month
@@ -489,8 +624,8 @@ export default function StatisticsClient({ user }: { user: User }) {
       const prevExpData = prevExpRes.ok ? await prevExpRes.json() : []
       const prevIncData = prevIncRes.ok ? await prevIncRes.json() : []
       
-      const previousMonthExpenses = prevExpData.reduce((sum: number, exp: any) => sum + exp.amount, 0)
-      const previousMonthIncomes = prevIncData.reduce((sum: number, inc: any) => sum + inc.amount, 0)
+      const previousMonthExpenses = prevExpData.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
+      const previousMonthIncomes = prevIncData.reduce((sum: number, inc: any) => sum + (inc.amountInRSD || inc.amount), 0)
       const previousMonthBalance = previousMonthIncomes - previousMonthExpenses
 
       // Calculate percentage changes
@@ -518,8 +653,8 @@ export default function StatisticsClient({ user }: { user: User }) {
         const exp = expRes.ok ? await expRes.json() : []
         const inc = incRes.ok ? await incRes.json() : []
         
-        const expTotal = exp.reduce((sum: number, e: any) => sum + e.amount, 0)
-        const incTotal = inc.reduce((sum: number, i: any) => sum + i.amount, 0)
+        const expTotal = exp.reduce((sum: number, e: any) => sum + (e.amountInRSD || e.amount), 0)
+        const incTotal = inc.reduce((sum: number, i: any) => sum + (i.amountInRSD || i.amount), 0)
         
         monthlyTrend.push({
           expenses: expTotal,
@@ -571,8 +706,8 @@ export default function StatisticsClient({ user }: { user: User }) {
         return incDate >= start && incDate <= end
       })
 
-      const expenses = filteredExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0)
-      const incomes = filteredIncomes.reduce((sum: number, inc: any) => sum + inc.amount, 0)
+      const expenses = filteredExpenses.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
+      const incomes = filteredIncomes.reduce((sum: number, inc: any) => sum + (inc.amountInRSD || inc.amount), 0)
       const balance = incomes - expenses
 
       // Calculate comparison with previous period of same length
@@ -592,8 +727,8 @@ export default function StatisticsClient({ user }: { user: User }) {
         return incDate >= prevStart && incDate <= prevEnd
       })
 
-      const prevExpensesTotal = prevExpenses.reduce((sum: number, exp: any) => sum + exp.amount, 0)
-      const prevIncomesTotal = prevIncomes.reduce((sum: number, inc: any) => sum + inc.amount, 0)
+      const prevExpensesTotal = prevExpenses.reduce((sum: number, exp: any) => sum + (exp.amountInRSD || exp.amount), 0)
+      const prevIncomesTotal = prevIncomes.reduce((sum: number, inc: any) => sum + (inc.amountInRSD || inc.amount), 0)
       const prevBalance = prevIncomesTotal - prevExpensesTotal
 
       // Calculate percentage changes
@@ -645,14 +780,14 @@ export default function StatisticsClient({ user }: { user: User }) {
       const currentCategories: any = {}
       currentExpData.forEach((exp: any) => {
         const catName = exp.category?.name || 'Ostalo'
-        currentCategories[catName] = (currentCategories[catName] || 0) + exp.amount
+        currentCategories[catName] = (currentCategories[catName] || 0) + (exp.amountInRSD || exp.amount)
       })
       
       // Group by category for previous month (MoM)
       const prevCategoriesMoM: any = {}
       prevExpData.forEach((exp: any) => {
         const catName = exp.category?.name || 'Ostalo'
-        prevCategoriesMoM[catName] = (prevCategoriesMoM[catName] || 0) + exp.amount
+        prevCategoriesMoM[catName] = (prevCategoriesMoM[catName] || 0) + (exp.amountInRSD || exp.amount)
       })
       
       // Fetch previous year data (YoY)
@@ -663,7 +798,7 @@ export default function StatisticsClient({ user }: { user: User }) {
       const prevCategoriesYoY: any = {}
       prevYearExpData.forEach((exp: any) => {
         const catName = exp.category?.name || 'Ostalo'
-        prevCategoriesYoY[catName] = (prevCategoriesYoY[catName] || 0) + exp.amount
+        prevCategoriesYoY[catName] = (prevCategoriesYoY[catName] || 0) + (exp.amountInRSD || exp.amount)
       })
       
       // Calculate MoM changes
@@ -750,14 +885,17 @@ export default function StatisticsClient({ user }: { user: User }) {
           <h1 className="text-4xl font-bold bg-fintech-gradient bg-clip-text text-transparent">
             Statistika
           </h1>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="px-6 py-3 rounded-2xl font-semibold backdrop-blur-xl border border-white/10 hover:bg-white/10 transition-all duration-300 flex items-center gap-2"
-            style={{background: 'rgba(255, 255, 255, 0.05)', color: '#B8B7C5'}}
-          >
-            <ArrowLeft size={20} weight="bold" />
-            Nazad
-          </button>
+          <div className="flex items-center gap-3">
+            <ModernHelpButton page="statistics" />
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="px-6 py-3 rounded-2xl font-semibold backdrop-blur-xl border border-white/10 hover:bg-white/10 transition-all duration-300 flex items-center gap-2"
+              style={{background: 'rgba(255, 255, 255, 0.05)', color: '#B8B7C5'}}
+            >
+              <ArrowLeft size={20} weight="bold" />
+              Nazad
+            </button>
+          </div>
         </div>
 
         {/* Month Navigation */}
@@ -771,6 +909,155 @@ export default function StatisticsClient({ user }: { user: User }) {
           <button onClick={goToNextMonth} className="p-3 rounded-full hover:bg-white/10 transition-all">
             <CaretRight size={24} weight="bold" style={{color: '#B8B7C5'}} />
           </button>
+        </div>
+
+        {/* NEW: Extended Metrics Section */}
+        <div className="mb-10">
+          <h2 className="text-xl font-bold mb-6" style={{color: '#E8E7F5'}}>📊 Napredne Metrike</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Avg Daily Expenses */}
+            <div className="rounded-2xl p-5 backdrop-blur-md border hover:scale-[1.02] transition-all duration-300" 
+                 style={{background: 'linear-gradient(145deg, rgba(255,179,230,0.08), rgba(255,179,230,0.03))', border: '1px solid rgba(255,179,230,0.2)', boxShadow: '0 0 20px rgba(255,179,230,0.1)'}}>
+              <div className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{color: 'rgba(255,179,230,0.7)'}}>Prosečno dnevno - Troškovi</div>
+              <div className="text-xl font-bold" style={{color: '#FFB3E6'}}>
+                {extendedMetrics.avgDailyExpenses.toLocaleString('sr-RS', {maximumFractionDigits: 0})} <span style={{fontSize: '0.6em', opacity: 0.6}}>RSD</span>
+              </div>
+              <div className="text-[10px] mt-1" style={{color: 'rgba(255,255,255,0.4)'}}>po danu ovog meseca</div>
+            </div>
+
+            {/* Avg Daily Incomes */}
+            <div className="rounded-2xl p-5 backdrop-blur-md border hover:scale-[1.02] transition-all duration-300" 
+                 style={{background: 'linear-gradient(145deg, rgba(111,255,196,0.08), rgba(111,255,196,0.03))', border: '1px solid rgba(111,255,196,0.2)', boxShadow: '0 0 20px rgba(111,255,196,0.1)'}}>
+              <div className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{color: 'rgba(111,255,196,0.7)'}}>Prosečno dnevno - Prihodi</div>
+              <div className="text-xl font-bold" style={{color: '#6FFFC4'}}>
+                {extendedMetrics.avgDailyIncomes.toLocaleString('sr-RS', {maximumFractionDigits: 0})} <span style={{fontSize: '0.6em', opacity: 0.6}}>RSD</span>
+              </div>
+              <div className="text-[10px] mt-1" style={{color: 'rgba(255,255,255,0.4)'}}>po danu ovog meseca</div>
+            </div>
+
+            {/* Savings Rate */}
+            <div className="rounded-2xl p-5 backdrop-blur-md border hover:scale-[1.02] transition-all duration-300" 
+                 style={{background: `linear-gradient(145deg, rgba(${extendedMetrics.savingsRate >= 20 ? '111,255,196' : extendedMetrics.savingsRate >= 10 ? '255,179,127' : '255,179,230'},0.08), rgba(${extendedMetrics.savingsRate >= 20 ? '111,255,196' : extendedMetrics.savingsRate >= 10 ? '255,179,127' : '255,179,230'},0.03))`, border: `1px solid rgba(${extendedMetrics.savingsRate >= 20 ? '111,255,196' : extendedMetrics.savingsRate >= 10 ? '255,179,127' : '255,179,230'},0.2)`, boxShadow: `0 0 20px rgba(${extendedMetrics.savingsRate >= 20 ? '111,255,196' : extendedMetrics.savingsRate >= 10 ? '255,179,127' : '255,179,230'},0.1)`}}>
+              <div className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{color: 'rgba(255,255,255,0.7)'}}>Stopa Štednje</div>
+              <div className="text-xl font-bold" style={{color: extendedMetrics.savingsRate >= 20 ? '#6FFFC4' : extendedMetrics.savingsRate >= 10 ? '#FFB37F' : '#FFB3E6'}}>
+                {extendedMetrics.savingsRate.toFixed(1)}%
+              </div>
+              <div className="text-[10px] mt-1" style={{color: 'rgba(255,255,255,0.4)'}}>
+                {extendedMetrics.savingsRate >= 20 ? '✨ Odlično!' : extendedMetrics.savingsRate >= 10 ? '👍 Dobro' : '⚠️ Malo'}
+              </div>
+            </div>
+
+            {/* Transaction Count */}
+            <div className="rounded-2xl p-5 backdrop-blur-md border hover:scale-[1.02] transition-all duration-300" 
+                 style={{background: 'linear-gradient(145deg, rgba(183,148,255,0.08), rgba(183,148,255,0.03))', border: '1px solid rgba(183,148,255,0.2)', boxShadow: '0 0 20px rgba(183,148,255,0.1)'}}>
+              <div className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{color: 'rgba(183,148,255,0.7)'}}>Transakcije</div>
+              <div className="text-xl font-bold" style={{color: '#B794FF'}}>
+                {extendedMetrics.transactionCount.total}
+              </div>
+              <div className="text-[10px] mt-1 flex gap-2" style={{color: 'rgba(255,255,255,0.4)'}}>
+                <span>📉 {extendedMetrics.transactionCount.expenses}</span>
+                <span>📈 {extendedMetrics.transactionCount.incomes}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Recurring & Currency */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {/* Recurring Expenses */}
+            <div className="rounded-2xl p-5 backdrop-blur-md border" 
+                 style={{background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 0 40px rgba(0,0,0,0.25)'}}>
+              <div className="text-sm font-semibold mb-3" style={{color: '#FFB3E6'}}>🔄 Ponavljajući Troškovi</div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-2xl font-bold" style={{color: '#FFFFFF'}}>{extendedMetrics.recurringExpenses.count}</div>
+                  <div className="text-xs" style={{color: 'rgba(255,255,255,0.5)'}}>aktivnih</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold" style={{color: '#FFB3E6'}}>
+                    {extendedMetrics.recurringExpenses.amount.toLocaleString('sr-RS', {maximumFractionDigits: 0})}
+                  </div>
+                  <div className="text-xs" style={{color: 'rgba(255,255,255,0.5)'}}>RSD/mesec</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recurring Incomes */}
+            <div className="rounded-2xl p-5 backdrop-blur-md border" 
+                 style={{background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 0 40px rgba(0,0,0,0.25)'}}>
+              <div className="text-sm font-semibold mb-3" style={{color: '#6FFFC4'}}>🔄 Ponavljajući Prihodi</div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-2xl font-bold" style={{color: '#FFFFFF'}}>{extendedMetrics.recurringIncomes.count}</div>
+                  <div className="text-xs" style={{color: 'rgba(255,255,255,0.5)'}}>aktivnih</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold" style={{color: '#6FFFC4'}}>
+                    {extendedMetrics.recurringIncomes.amount.toLocaleString('sr-RS', {maximumFractionDigits: 0})}
+                  </div>
+                  <div className="text-xs" style={{color: 'rgba(255,255,255,0.5)'}}>RSD/mesec</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Currency Exposure */}
+            <div className="rounded-2xl p-5 backdrop-blur-md border" 
+                 style={{background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 0 40px rgba(0,0,0,0.25)'}}>
+              <div className="text-sm font-semibold mb-3" style={{color: '#7FDFFF'}}>💱 Devizna Izloženost</div>
+              {extendedMetrics.currencyExposure.length > 0 ? (
+                <div className="space-y-2">
+                  {extendedMetrics.currencyExposure.slice(0, 3).map((curr, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span className="text-xs font-bold" style={{color: '#FFFFFF'}}>{curr.currency}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-2 rounded-full" style={{background: 'rgba(127,223,255,0.2)'}}>
+                          <div className="h-full rounded-full" style={{width: `${curr.percentage}%`, background: '#7FDFFF'}}></div>
+                        </div>
+                        <span className="text-xs" style={{color: '#7FDFFF'}}>{curr.percentage.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-center py-2" style={{color: 'rgba(255,255,255,0.4)'}}>Samo RSD</div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: Group Spending (only if in group) */}
+          {groupStats && groupStats.isInGroup && (
+            <div className="rounded-2xl p-6 backdrop-blur-md border" 
+                 style={{background: 'linear-gradient(145deg, rgba(127,223,255,0.08), rgba(127,223,255,0.03))', border: '1px solid rgba(127,223,255,0.2)', boxShadow: '0 0 30px rgba(127,223,255,0.15)'}}>
+              <div className="flex items-center gap-2 mb-4">
+                <Users size={20} weight="bold" style={{color: '#7FDFFF'}} />
+                <div className="text-sm font-semibold" style={{color: '#7FDFFF'}}>Grupna Potrošnja - {groupStats.groupName}</div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <div className="text-xs mb-1" style={{color: 'rgba(255,255,255,0.6)'}}>Tvoj doprinos</div>
+                  <div className="text-2xl font-bold" style={{color: '#FFFFFF'}}>
+                    {groupStats.userContribution.toLocaleString('sr-RS', {maximumFractionDigits: 0})} <span style={{fontSize: '0.6em', opacity: 0.6}}>RSD</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs mb-1" style={{color: 'rgba(255,255,255,0.6)'}}>Procenat učešća</div>
+                  <div className="text-2xl font-bold" style={{color: '#7FDFFF'}}>
+                    {groupStats.userPercentage.toFixed(1)}%
+                  </div>
+                  <div className="text-[10px] mt-1" style={{color: 'rgba(255,255,255,0.4)'}}>
+                    od {groupStats.memberCount} članova
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs mb-1" style={{color: 'rgba(255,255,255,0.6)'}}>Ukupna grupna potrošnja</div>
+                  <div className="text-2xl font-bold" style={{color: '#B794FF'}}>
+                    {groupStats.totalGroupExpenses.toLocaleString('sr-RS', {maximumFractionDigits: 0})} <span style={{fontSize: '0.6em', opacity: 0.6}}>RSD</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Monthly Stats Cards */}
@@ -877,12 +1164,19 @@ export default function StatisticsClient({ user }: { user: User }) {
               <div className="mt-2 w-full" style={{height: '40px'}}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={yoyData.monthlyTrend.map((value, index) => ({ value }))}>
+                    <defs>
+                      <linearGradient id="yoySparkline" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#FFB3E6" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#B794FF" stopOpacity={1}/>
+                      </linearGradient>
+                    </defs>
                     <Line 
                       type="monotone" 
                       dataKey="value" 
-                      stroke="#FFB3E6" 
-                      strokeWidth={2} 
+                      stroke="url(#yoySparkline)" 
+                      strokeWidth={2.5} 
                       dot={false}
+                      style={{filter: 'drop-shadow(0 2px 4px rgba(255, 179, 230, 0.3))'}}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -963,19 +1257,31 @@ export default function StatisticsClient({ user }: { user: User }) {
               <div className="mt-2 w-full" style={{height: '40px'}}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={momData.monthlyTrend}>
+                    <defs>
+                      <linearGradient id="momSparklineExp" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#FFB3E6" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#B794FF" stopOpacity={1}/>
+                      </linearGradient>
+                      <linearGradient id="momSparklineInc" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#6FFFC4" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#4DD0E1" stopOpacity={1}/>
+                      </linearGradient>
+                    </defs>
                     <Line 
                       type="monotone" 
                       dataKey="expenses" 
-                      stroke="#FFB3E6" 
-                      strokeWidth={1.5} 
+                      stroke="url(#momSparklineExp)" 
+                      strokeWidth={2} 
                       dot={false}
+                      style={{filter: 'drop-shadow(0 2px 4px rgba(255, 179, 230, 0.3))'}}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="incomes" 
-                      stroke="#6FFFC4" 
-                      strokeWidth={1.5} 
+                      stroke="url(#momSparklineInc)" 
+                      strokeWidth={2} 
                       dot={false}
+                      style={{filter: 'drop-shadow(0 2px 4px rgba(111, 255, 196, 0.3))'}}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1131,11 +1437,55 @@ export default function StatisticsClient({ user }: { user: User }) {
           {monthlyData.length > 0 ? (
             <ResponsiveContainer width="100%" height={420}>
               <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(50,50,50,0.3)" />
-                <XAxis dataKey="month" stroke="#A5A4B6" style={{fontSize: '12px'}} />
-                <YAxis stroke="#A5A4B6" style={{fontSize: '12px'}} />
+                <defs>
+                  <linearGradient id="expensesGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FFB3E6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#FFB3E6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="incomesGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6FFFC4" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#6FFFC4" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#7FDFFF" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#7FDFFF" stopOpacity={0}/>
+                  </linearGradient>
+                  <filter id="shadowExpenses">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#FFB3E6" floodOpacity="0.3"/>
+                  </filter>
+                  <filter id="shadowIncomes">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#6FFFC4" floodOpacity="0.3"/>
+                  </filter>
+                  <filter id="shadowBalance">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#7FDFFF" floodOpacity="0.3"/>
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="rgba(165,164,182,0.6)" 
+                  tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 12}}
+                  axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                  style={{fontSize: '12px'}}
+                />
+                <YAxis 
+                  stroke="rgba(165,164,182,0.6)" 
+                  tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 12}}
+                  axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  style={{fontSize: '12px'}}
+                />
                 <Tooltip 
-                  contentStyle={{background: '#1A1825', border: 'none', borderRadius: '10px', color: '#FFFFFF'}}
+                  contentStyle={{
+                    background: 'rgba(26, 24, 37, 0.95)', 
+                    border: '1px solid rgba(255, 255, 255, 0.1)', 
+                    borderRadius: '12px', 
+                    color: '#FFFFFF',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                  }}
+                  labelStyle={{color: '#FFFFFF', fontWeight: 600, marginBottom: '8px'}}
+                  itemStyle={{color: '#FFFFFF', padding: '4px 0'}}
                   formatter={(value: any) => [
                     <span key="value">
                       {Number(value).toLocaleString('sr-RS')} <span style={{fontSize: '0.75em', opacity: 0.7}}>RSD</span>
@@ -1143,12 +1493,41 @@ export default function StatisticsClient({ user }: { user: User }) {
                   ]}
                 />
                 <Legend 
-                  wrapperStyle={{fontSize: '13px', fontFamily: '"Inter", sans-serif'}}
-                  iconType="line"
+                  wrapperStyle={{fontSize: '13px', fontFamily: '"Inter", sans-serif', paddingTop: '20px'}}
+                  iconType="circle"
+                  formatter={(value) => <span style={{color: '#FFFFFF', fontSize: '13px', fontWeight: 500}}>{value}</span>}
                 />
-                <Line type="monotone" dataKey="expenses" stroke="#FFB3E6" strokeWidth={2} name="Troškovi" />
-                <Line type="monotone" dataKey="incomes" stroke="#6FFFC4" strokeWidth={2} name="Prihodi" />
-                <Line type="monotone" dataKey="balance" stroke="#7FDFFF" strokeWidth={2} name="Bilans" />
+                <Line 
+                  type="monotone" 
+                  dataKey="expenses" 
+                  stroke="#FFB3E6" 
+                  strokeWidth={3} 
+                  name="Troškovi"
+                  dot={{fill: '#FFB3E6', strokeWidth: 2, r: 4, stroke: '#1A1825'}}
+                  activeDot={{r: 6, fill: '#FFB3E6', stroke: '#FFFFFF', strokeWidth: 2}}
+                  filter="url(#shadowExpenses)"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="incomes" 
+                  stroke="#6FFFC4" 
+                  strokeWidth={3} 
+                  name="Prihodi"
+                  dot={{fill: '#6FFFC4', strokeWidth: 2, r: 4, stroke: '#1A1825'}}
+                  activeDot={{r: 6, fill: '#6FFFC4', stroke: '#FFFFFF', strokeWidth: 2}}
+                  filter="url(#shadowIncomes)"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="balance" 
+                  stroke="#7FDFFF" 
+                  strokeWidth={3} 
+                  name="Bilans"
+                  dot={{fill: '#7FDFFF', strokeWidth: 2, r: 4, stroke: '#1A1825'}}
+                  activeDot={{r: 6, fill: '#7FDFFF', stroke: '#FFFFFF', strokeWidth: 2}}
+                  strokeDasharray="5 5"
+                  filter="url(#shadowBalance)"
+                />
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -1164,38 +1543,137 @@ export default function StatisticsClient({ user }: { user: User }) {
             <h3 className="text-[15px] font-medium mb-6" style={{color: '#FFFFFF', fontFamily: '"Inter", sans-serif'}}>Troškovi po kategorijama</h3>
             {expenseCategories.length > 0 ? (
               <div className="flex items-center gap-6">
-                <div style={{width: '240px', height: '240px', flexShrink: 0, position: 'relative'}}>
-                  <div style={{position: 'absolute', inset: 0, borderRadius: '50%', boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: 1}}></div>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={expenseCategories} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={115} stroke="rgba(18,18,27,0.15)" strokeWidth={1}>
-                        {expenseCategories.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{background: '#1E1B2A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#FFFFFF'}} 
-                        labelStyle={{color: '#FFFFFF'}}
-                        itemStyle={{color: '#FFFFFF'}}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="relative" style={{width: '200px', height: '200px', flexShrink: 0}}>
+                  <svg width="100%" height="100%" viewBox="0 0 100 100" className="drop-shadow-sm">
+                    <defs>
+                      <linearGradient id="segmentShineStats" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
+                        <stop offset="100%" stopColor="rgba(0,0,0,0.03)" />
+                      </linearGradient>
+                      <linearGradient id="depthShadowStats" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+                        <stop offset="100%" stopColor="rgba(0,0,0,0.4)" />
+                      </linearGradient>
+                      <filter id="innerShadowStats">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+                        <feOffset dx="0" dy="2" result="offsetblur"/>
+                        <feComponentTransfer>
+                          <feFuncA type="linear" slope="0.5"/>
+                        </feComponentTransfer>
+                        <feMerge>
+                          <feMergeNode/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                      <linearGradient id="expenseGradient1Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#FF78A8" />
+                        <stop offset="50%" stopColor="#FF6B9D" />
+                        <stop offset="100%" stopColor="#F05D8A" />
+                      </linearGradient>
+                      <linearGradient id="expenseGradient2Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#D49FE3" />
+                        <stop offset="50%" stopColor="#CE93D8" />
+                        <stop offset="100%" stopColor="#C080CF" />
+                      </linearGradient>
+                      <linearGradient id="expenseGradient3Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#FFC05F" />
+                        <stop offset="50%" stopColor="#FFB74D" />
+                        <stop offset="100%" stopColor="#FFA73B" />
+                      </linearGradient>
+                      <linearGradient id="expenseGradient4Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#5ECBFF" />
+                        <stop offset="50%" stopColor="#4FC3F7" />
+                        <stop offset="100%" stopColor="#3DB5E8" />
+                      </linearGradient>
+                      <linearGradient id="expenseGradient5Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#F57199" />
+                        <stop offset="50%" stopColor="#F06292" />
+                        <stop offset="100%" stopColor="#E64F82" />
+                      </linearGradient>
+                      <linearGradient id="expenseGradient6Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#A083D6" />
+                        <stop offset="50%" stopColor="#9575CD" />
+                        <stop offset="100%" stopColor="#8662BD" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="45.5" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                    <g transform="rotate(-90 50 50)">
+                      {(() => {
+                        const total = expenseCategories.reduce((sum, cat) => sum + cat.value, 0);
+                        
+                        // Specijalan slučaj: samo jedna kategorija
+                        if (expenseCategories.length === 1) {
+                          const gradient = 'url(#expenseGradient1Stats)';
+                          return (
+                            <g>
+                              <circle cx={50 + 1.5} cy={50 + 1.5} r="45" fill="rgba(0,0,0,0.25)" opacity="0.6" />
+                              <circle cx="50" cy="50" r="45" fill={gradient} className="hover:opacity-95 transition-all" style={{filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.55))'}} />
+                              <circle cx="50" cy="50" r="45" fill="rgba(0,0,0,0.15)" />
+                              <circle cx="50" cy="50" r="45" fill="url(#segmentShineStats)" opacity="0.18" />
+                              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                            </g>
+                          );
+                        }
+                        
+                        // Više kategorija
+                        let currentAngle = 0;
+                        const premiumGradients = ['url(#expenseGradient1Stats)', 'url(#expenseGradient2Stats)', 'url(#expenseGradient3Stats)', 'url(#expenseGradient4Stats)', 'url(#expenseGradient5Stats)', 'url(#expenseGradient6Stats)'];
+                        return expenseCategories.map((cat, idx) => {
+                          const percentage = (cat.value / total) * 100;
+                          const angle = (percentage / 100) * 360;
+                          const startAngle = currentAngle;
+                          currentAngle += angle;
+                          
+                          const startRad = (startAngle * Math.PI) / 180;
+                          const endRad = (currentAngle * Math.PI) / 180;
+                          const x1 = 50 + 45 * Math.cos(startRad);
+                          const y1 = 50 + 45 * Math.sin(startRad);
+                          const x2 = 50 + 45 * Math.cos(endRad);
+                          const y2 = 50 + 45 * Math.sin(endRad);
+                          const largeArc = angle > 180 ? 1 : 0;
+                          const gradient = premiumGradients[idx % premiumGradients.length];
+                          const shadowIntensity = 0.4 - (idx * 0.08);
+                          const offsetX = idx * 0.15;
+                          const offsetY = idx * 0.15;
+                          const depthOffset = 1.5;
+                          
+                          return (
+                            <g key={idx} transform={`translate(${offsetX}, ${offsetY})`}>
+                              <path d={`M ${50 + depthOffset} ${50 + depthOffset} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} Z`} fill="rgba(0,0,0,0.25)" opacity="0.6" />
+                              <path d={`M ${x1} ${y1} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} L ${x2} ${y2} A 45 45 0 ${largeArc ? 0 : 1} 0 ${x1} ${y1} Z`} fill="url(#depthShadowStats)" opacity="0.5" />
+                              <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill={gradient} className="hover:opacity-95 transition-all" style={{filter: `drop-shadow(0 ${2 + idx * 0.5}px ${5 + idx * 1.5}px rgba(0,0,0,${shadowIntensity + 0.15}))`, transform: `translateZ(${idx * 2}px)`}} />
+                              <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="rgba(0,0,0,0.15)" style={{filter: 'url(#innerShadowStats)'}} />
+                              <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="url(#segmentShineStats)" opacity={0.18 + (idx * 0.02)} />
+                              <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                              <path d={`A 45 45 0 ${largeArc} 1 ${x2} ${y2}`} fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1.5" strokeLinecap="round" transform={`translate(${x1}, ${y1})`} opacity="0.4" />
+                            </g>
+                          );
+                        });
+                      })()}
+                    </g>
+                    <circle cx="50" cy="50" r="20" fill="#10111A" stroke="rgba(228, 88, 214, 0.35)" strokeWidth="1.5" />
+                    <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="14" fontWeight="bold" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
+                      {expenseCategories.length}
+                    </text>
+                    <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="8" opacity="0.9" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
+                      kat.
+                    </text>
+                  </svg>
                 </div>
-                <div className="flex-1 space-y-2.5">
-                  {expenseCategories.map((cat, idx) => {
+                <div className="flex-1 space-y-1.5 overflow-hidden flex flex-col justify-center">
+                  {expenseCategories.slice(0, 4).map((cat, idx) => {
                     const Icon = getIcon(cat.icon)
                     const total = expenseCategories.reduce((sum, c) => sum + c.value, 0)
                     const percentage = ((cat.value / total) * 100).toFixed(1)
+                    const premiumColors = ['#FF6B9D', '#CE93D8', '#FFB74D', '#4FC3F7', '#F06292', '#9575CD'];
+                    const color = premiumColors[idx % premiumColors.length];
                     return (
-                      <div key={idx} className="flex items-center gap-[1.1rem]">
-                        <div className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{background: cat.color}}></div>
-                        <div className="p-1.5 rounded-lg flex-shrink-0" style={{background: 'rgba(255,179,230,0.1)'}}>
-                          <Icon size={16} weight="bold" style={{color: '#FFB3E6'}} />
-                        </div>
+                      <div key={idx} className="flex items-center gap-2.5 group">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background: color}}></div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[0.9375rem] font-semibold truncate" style={{color: '#E8E7F5'}}>{cat.name}</div>
+                          <div className="text-[11px] font-semibold truncate" style={{color: '#E8D9FF'}}>{cat.name}</div>
                         </div>
-                        <div className="text-xs font-bold" style={{color: cat.color}}>{percentage}%</div>
+                        <div className="text-[9px] font-bold" style={{color: color}}>{percentage}%</div>
                       </div>
                     )
                   })}
@@ -1212,38 +1690,137 @@ export default function StatisticsClient({ user }: { user: User }) {
             <h3 className="text-[15px] font-medium mb-6" style={{color: '#FFFFFF', fontFamily: '"Inter", sans-serif'}}>Prihodi po kategorijama</h3>
             {incomeCategories.length > 0 ? (
               <div className="flex items-center gap-6">
-                <div style={{width: '240px', height: '240px', flexShrink: 0, position: 'relative'}}>
-                  <div style={{position: 'absolute', inset: 0, borderRadius: '50%', boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: 1}}></div>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={incomeCategories} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={115} stroke="rgba(18,18,27,0.15)" strokeWidth={1}>
-                        {incomeCategories.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{background: '#1E1B2A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#FFFFFF'}} 
-                        labelStyle={{color: '#FFFFFF'}}
-                        itemStyle={{color: '#FFFFFF'}}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="relative" style={{width: '200px', height: '200px', flexShrink: 0}}>
+                  <svg width="100%" height="100%" viewBox="0 0 100 100" className="drop-shadow-sm">
+                    <defs>
+                      <linearGradient id="segmentShineIncomeStats" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="rgba(255,255,255,0.12)" />
+                        <stop offset="100%" stopColor="rgba(0,0,0,0.03)" />
+                      </linearGradient>
+                      <linearGradient id="depthShadowIncomeStats" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+                        <stop offset="100%" stopColor="rgba(0,0,0,0.4)" />
+                      </linearGradient>
+                      <filter id="innerShadowIncomeStats">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+                        <feOffset dx="0" dy="2" result="offsetblur"/>
+                        <feComponentTransfer>
+                          <feFuncA type="linear" slope="0.5"/>
+                        </feComponentTransfer>
+                        <feMerge>
+                          <feMergeNode/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                      <linearGradient id="incomeGradient1Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#5AD7EB" />
+                        <stop offset="50%" stopColor="#4DD0E1" />
+                        <stop offset="100%" stopColor="#3DC3D4" />
+                      </linearGradient>
+                      <linearGradient id="incomeGradient2Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#8DD08F" />
+                        <stop offset="50%" stopColor="#81C784" />
+                        <stop offset="100%" stopColor="#72B975" />
+                      </linearGradient>
+                      <linearGradient id="incomeGradient3Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#5AC0B8" />
+                        <stop offset="50%" stopColor="#4DB6AC" />
+                        <stop offset="100%" stopColor="#3EA69D" />
+                      </linearGradient>
+                      <linearGradient id="incomeGradient4Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#B9DE8D" />
+                        <stop offset="50%" stopColor="#AED581" />
+                        <stop offset="100%" stopColor="#9EC870" />
+                      </linearGradient>
+                      <linearGradient id="incomeGradient5Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#5BCDFF" />
+                        <stop offset="50%" stopColor="#4FC3F7" />
+                        <stop offset="100%" stopColor="#3FB4E8" />
+                      </linearGradient>
+                      <linearGradient id="incomeGradient6Stats" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" stopColor="#72E527" />
+                        <stop offset="50%" stopColor="#64DD17" />
+                        <stop offset="100%" stopColor="#58CA0A" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="45.5" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                    <g transform="rotate(-90 50 50)">
+                      {(() => {
+                        const total = incomeCategories.reduce((sum, cat) => sum + cat.value, 0);
+                        
+                        // Specijalan slučaj: samo jedna kategorija
+                        if (incomeCategories.length === 1) {
+                          const gradient = 'url(#incomeGradient1Stats)';
+                          return (
+                            <g>
+                              <circle cx={50 + 1.5} cy={50 + 1.5} r="45" fill="rgba(0,0,0,0.25)" opacity="0.6" />
+                              <circle cx="50" cy="50" r="45" fill={gradient} className="hover:opacity-95 transition-all" style={{filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.55))'}} />
+                              <circle cx="50" cy="50" r="45" fill="rgba(0,0,0,0.15)" />
+                              <circle cx="50" cy="50" r="45" fill="url(#segmentShineIncomeStats)" opacity="0.18" />
+                              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                            </g>
+                          );
+                        }
+                        
+                        // Više kategorija
+                        let currentAngle = 0;
+                        const premiumGradients = ['url(#incomeGradient1Stats)', 'url(#incomeGradient2Stats)', 'url(#incomeGradient3Stats)', 'url(#incomeGradient4Stats)', 'url(#incomeGradient5Stats)', 'url(#incomeGradient6Stats)'];
+                        return incomeCategories.map((cat, idx) => {
+                          const percentage = (cat.value / total) * 100;
+                          const angle = (percentage / 100) * 360;
+                          const startAngle = currentAngle;
+                          currentAngle += angle;
+                          
+                          const startRad = (startAngle * Math.PI) / 180;
+                          const endRad = (currentAngle * Math.PI) / 180;
+                          const x1 = 50 + 45 * Math.cos(startRad);
+                          const y1 = 50 + 45 * Math.sin(startRad);
+                          const x2 = 50 + 45 * Math.cos(endRad);
+                          const y2 = 50 + 45 * Math.sin(endRad);
+                          const largeArc = angle > 180 ? 1 : 0;
+                          const gradient = premiumGradients[idx % premiumGradients.length];
+                          const shadowIntensity = 0.4 - (idx * 0.08);
+                          const offsetX = idx * 0.15;
+                          const offsetY = idx * 0.15;
+                          const depthOffset = 1.5;
+                          
+                          return (
+                            <g key={idx} transform={`translate(${offsetX}, ${offsetY})`}>
+                              <path d={`M ${50 + depthOffset} ${50 + depthOffset} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} Z`} fill="rgba(0,0,0,0.25)" opacity="0.6" />
+                              <path d={`M ${x1} ${y1} L ${x1 + depthOffset} ${y1 + depthOffset} A 45 45 0 ${largeArc} 1 ${x2 + depthOffset} ${y2 + depthOffset} L ${x2} ${y2} A 45 45 0 ${largeArc ? 0 : 1} 0 ${x1} ${y1} Z`} fill="url(#depthShadowIncomeStats)" opacity="0.5" />
+                              <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill={gradient} className="hover:opacity-95 transition-all" style={{filter: `drop-shadow(0 ${2 + idx * 0.5}px ${5 + idx * 1.5}px rgba(0,0,0,${shadowIntensity + 0.15}))`, transform: `translateZ(${idx * 2}px)`}} />
+                              <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="rgba(0,0,0,0.15)" style={{filter: 'url(#innerShadowIncomeStats)'}} />
+                              <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="url(#segmentShineIncomeStats)" opacity={0.18 + (idx * 0.02)} />
+                              <path d={`M 50 50 L ${x1} ${y1} A 45 45 0 ${largeArc} 1 ${x2} ${y2} Z`} fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" />
+                              <path d={`A 45 45 0 ${largeArc} 1 ${x2} ${y2}`} fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1.5" strokeLinecap="round" transform={`translate(${x1}, ${y1})`} opacity="0.4" />
+                            </g>
+                          );
+                        });
+                      })()}
+                    </g>
+                    <circle cx="50" cy="50" r="20" fill="#10111A" stroke="rgba(100, 243, 194, 0.35)" strokeWidth="1.5" />
+                    <text x="50" y="48" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="14" fontWeight="bold" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
+                      {incomeCategories.length}
+                    </text>
+                    <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" fill="#FFFFFF" fontSize="8" opacity="0.9" style={{textShadow: '0 0 6px rgba(255, 255, 255, 0.12)'}}>
+                      kat.
+                    </text>
+                  </svg>
                 </div>
-                <div className="flex-1 space-y-2.5">
-                  {incomeCategories.map((cat, idx) => {
+                <div className="flex-1 space-y-1.5 overflow-hidden flex flex-col justify-center">
+                  {incomeCategories.slice(0, 4).map((cat, idx) => {
                     const Icon = getIcon(cat.icon)
                     const total = incomeCategories.reduce((sum, c) => sum + c.value, 0)
                     const percentage = ((cat.value / total) * 100).toFixed(1)
+                    const premiumColors = ['#4DD0E1', '#81C784', '#4DB6AC', '#AED581', '#4FC3F7', '#64DD17'];
+                    const color = premiumColors[idx % premiumColors.length];
                     return (
-                      <div key={idx} className="flex items-center gap-[1.1rem]">
-                        <div className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{background: cat.color}}></div>
-                        <div className="p-1.5 rounded-lg flex-shrink-0" style={{background: 'rgba(111,255,196,0.1)'}}>
-                          <Icon size={16} weight="bold" style={{color: '#6FFFC4'}} />
-                        </div>
+                      <div key={idx} className="flex items-center gap-2.5 group">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background: color}}></div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[0.9375rem] font-semibold truncate" style={{color: '#E8E7F5'}}>{cat.name}</div>
+                          <div className="text-[11px] font-semibold truncate" style={{color: '#D3FFF2'}}>{cat.name}</div>
                         </div>
-                        <div className="text-xs font-bold" style={{color: cat.color}}>{percentage}%</div>
+                        <div className="text-[9px] font-bold" style={{color: color}}>{percentage}%</div>
                       </div>
                     )
                   })}
@@ -1267,11 +1844,47 @@ export default function StatisticsClient({ user }: { user: User }) {
             {dailyExpenses.length > 0 ? (
               <ResponsiveContainer width="100%" height={375}>
                 <BarChart data={dailyExpenses}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(50,50,50,0.3)" />
-                  <XAxis dataKey="day" stroke="#A5A4B6" />
-                  <YAxis stroke="#A5A4B6" />
-                  <Tooltip contentStyle={{background: '#1A1825', border: 'none', borderRadius: '10px', color: '#FFFFFF'}} />
-                  <Bar dataKey="amount" fill="#FFB3E6" name="Iznos" />
+                  <defs>
+                    <linearGradient id="barGradientExp" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FFB3E6" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#B794FF" stopOpacity={0.8}/>
+                    </linearGradient>
+                    <filter id="barShadow">
+                      <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#FFB3E6" floodOpacity="0.4"/>
+                    </filter>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis 
+                    dataKey="day" 
+                    stroke="rgba(165,164,182,0.6)" 
+                    tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 11}}
+                    axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                  />
+                  <YAxis 
+                    stroke="rgba(165,164,182,0.6)" 
+                    tick={{fill: 'rgba(255,255,255,0.7)', fontSize: 11}}
+                    axisLine={{stroke: 'rgba(255,255,255,0.1)'}}
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      background: 'rgba(26, 24, 37, 0.95)', 
+                      border: '1px solid rgba(255, 255, 255, 0.1)', 
+                      borderRadius: '12px', 
+                      color: '#FFFFFF',
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                    }}
+                    cursor={{fill: 'rgba(255, 179, 230, 0.1)'}}
+                    formatter={(value: any) => [`${Number(value).toLocaleString('sr-RS')} RSD`, 'Iznos']}
+                  />
+                  <Bar 
+                    dataKey="amount" 
+                    fill="url(#barGradientExp)" 
+                    name="Iznos"
+                    radius={[8, 8, 0, 0]}
+                    filter="url(#barShadow)"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -1512,9 +2125,6 @@ export default function StatisticsClient({ user }: { user: User }) {
           </div>
         </div>
       </div>
-
-      {/* Help Button */}
-      <HelpButton page="statistics" />
     </div>
   )
 }
