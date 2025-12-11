@@ -1,0 +1,413 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String                  @id @default(cuid())
+  email                   String                  @unique
+  name                    String
+  password                String
+  currency                String                  @default("RSD")
+  language                String                  @default("sr")
+  role                    String                  @default("user")
+  status                  String                  @default("active")
+  emailVerified           Boolean                 @default(false)
+  verificationToken       String?                 @unique
+  verificationTokenExpiry DateTime?
+  resetToken              String?                 @unique
+  resetTokenExpiry        DateTime?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  username                String?
+  phone                   String?
+  dateFormat              String?
+  timezone                String?                 @default("Europe/Belgrade")
+  notifications           Boolean?                @default(true)
+  recurringNotifications  Boolean?                @default(true)
+  aiAssistantEnabled      Boolean?                @default(true)
+  theme                   String?
+  primaryColor            String?
+  fontSize                String?
+  chartType               String?
+  activeGroupId           String?
+  budgets                 Budget[]
+  categories              Category[]
+  expenses                Expense[]
+  ownedGroups             Group[]
+  groupMemberships        GroupMember[]
+  incomes                 Income[]
+  incomeCategories        IncomeCategory[]
+  userNotifications       Notification[]
+  ocrLogs                 OCRLog[]
+  recurringExpenses       RecurringExpense[]
+  recurringIncomes        RecurringIncome[]
+  savingsGoals            SavingsGoal[]
+  savingsContributions    SavingsContribution[]
+  splitsOwedBy            Split[]                 @relation("SplitOwedBy")
+  splitsPaidBy            Split[]                 @relation("SplitPaidBy")
+  activeGroup             Group?                  @relation("ActiveGroup", fields: [activeGroupId], references: [id])
+  vendorMappings          VendorCategoryMapping[]
+}
+
+model Category {
+  id             String                  @id @default(cuid())
+  name           String
+  icon           String?
+  color          String?
+  isActive       Boolean                 @default(true)
+  isSavings      Boolean                 @default(false)
+  parentId       String?
+  userId         String
+  createdAt      DateTime                @default(now())
+  budgets        Budget[]
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent         Category?               @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children       Category[]              @relation("CategoryHierarchy")
+  expenses       Expense[]
+  savingsGoals   SavingsGoal[]
+  vendorMappings VendorCategoryMapping[]
+
+  @@unique([userId, name])
+}
+
+model IncomeCategory {
+  id              String   @id @default(cuid())
+  name            String
+  icon            String?
+  color           String?
+  isActive        Boolean  @default(true)
+  isLoanRepayment Boolean  @default(false)
+  userId          String
+  createdAt       DateTime @default(now())
+  incomes         Income[]
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+model Expense {
+  id                   String                 @id @default(cuid())
+  amount               Float
+  amountInRSD          Float?
+  description          String
+  date                 DateTime
+  categoryId           String
+  userId               String
+  receiptUrl           String?
+  isRecurring          Boolean                @default(false)
+  recurringExpenseId   String?
+  groupId              String?
+  splitAmount          Float?
+  paidBy               String?
+  currency             String?
+  note                 String?
+  paymentMethod        String?                @default("cash")
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  group                Group?                 @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  recurringExpense     RecurringExpense?      @relation(fields: [recurringExpenseId], references: [id])
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category             Category               @relation(fields: [categoryId], references: [id])
+  splits               Split[]
+  savingsContributions SavingsContribution[]
+}
+
+model Income {
+  id                  String           @id @default(cuid())
+  amount              Float
+  amountInRSD         Float?
+  description         String
+  date                DateTime
+  categoryId          String
+  userId              String
+  isRecurring         Boolean          @default(false)
+  recurringIncomeId   String?
+  groupId             String?
+  loanRepaymentAmount Float?
+  currency            String?
+  note                String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  group               Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  recurringIncome     RecurringIncome? @relation(fields: [recurringIncomeId], references: [id])
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category            IncomeCategory   @relation(fields: [categoryId], references: [id])
+}
+
+model RecurringExpense {
+  id              String    @id @default(cuid())
+  amount          Float
+  description     String
+  categoryId      String
+  frequency       String
+  dayOfMonth      Int?
+  dayOfWeek       Int?
+  userId          String
+  isActive        Boolean   @default(true)
+  nextExecutionAt DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  expenses        Expense[]
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RecurringIncome {
+  id              String   @id @default(cuid())
+  amount          Float
+  description     String
+  categoryId      String
+  frequency       String
+  dayOfMonth      Int?
+  dayOfWeek       Int?
+  userId          String
+  isActive        Boolean  @default(true)
+  reminderEnabled Boolean  @default(true)
+  nextExecutionAt DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  incomes         Income[]
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Group {
+  id                   String                 @id @default(cuid())
+  name                 String
+  description          String?
+  type                 GroupType              @default(PERMANENT)
+  durationType         DurationType?
+  startDate            DateTime?
+  endDate              DateTime?
+  isActive             Boolean                @default(true)
+  ownerId              String
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  budgets              Budget[]
+  expenses             Expense[]
+  owner                User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members              GroupMember[]
+  incomes              Income[]
+  savingsGoals         SavingsGoal[]
+  settlements          Settlement[]
+  splits               Split[]
+  activeUsers          User[]                 @relation("ActiveGroup")
+  savingsContributions SavingsContribution[]
+}
+
+model GroupMember {
+  id          String    @id @default(cuid())
+  groupId     String
+  userId      String
+  role        String    @default("member")
+  permissions String    @default("view,add")
+  joinedAt    DateTime  @default(now())
+  leftAt      DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model InviteToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  groupId   String
+  email     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model OCRLog {
+  id            String   @id @default(cuid())
+  userId        String
+  imageUrl      String
+  extractedData Json?
+  status        String
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  action    String
+  targetId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+}
+
+model Settlement {
+  id          String    @id @default(cuid())
+  groupId     String
+  fromUserId  String
+  toUserId    String
+  amount      Float
+  status      String    @default("PENDING")
+  settledAt   DateTime  @default(now())
+  confirmedAt DateTime?
+  rejectedAt  DateTime?
+  note        String?
+  createdAt   DateTime  @default(now())
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+}
+
+model Split {
+  id        String    @id @default(cuid())
+  groupId   String
+  expenseId String
+  paidById  String
+  owedById  String
+  amount    Float
+  currency  String    @default("RSD")
+  isPaid    Boolean   @default(false)
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  owedBy    User      @relation("SplitOwedBy", fields: [owedById], references: [id], onDelete: Cascade)
+  paidBy    User      @relation("SplitPaidBy", fields: [paidById], references: [id], onDelete: Cascade)
+  expense   Expense   @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([expenseId])
+  @@index([paidById])
+  @@index([owedById])
+  @@index([isPaid])
+}
+
+model VendorCategoryMapping {
+  id         String   @id @default(cuid())
+  userId     String
+  vendorName String
+  categoryId String
+  usageCount Int      @default(1)
+  confidence Float    @default(1.0)
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vendorName])
+  @@index([userId])
+  @@index([vendorName])
+  @@index([userId, usageCount])
+}
+
+model Budget {
+  id           String    @id @default(cuid())
+  userId       String
+  groupId      String?
+  categoryId   String?
+  amount       Float
+  period       String
+  alert80Sent  Boolean   @default(false)
+  alert100Sent Boolean   @default(false)
+  lastResetAt  DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  group        Group?    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId, categoryId, period])
+  @@index([userId])
+  @@index([groupId])
+  @@index([categoryId])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String
+  title      String
+  message    String
+  groupId    String?
+  expenseId  String?
+  fromUserId String?
+  isRead     Boolean  @default(false)
+  emailSent  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([groupId])
+}
+
+enum GroupType {
+  PERMANENT
+  TEMPORARY
+}
+
+enum DurationType {
+  DAYS_7
+  DAYS_10
+  DAYS_15
+  DAYS_30
+  YEAR_1
+  CUSTOM
+}
+
+model SavingsGoal {
+  id                   String                @id @default(cuid())
+  userId               String
+  groupId              String?
+  name                 String
+  targetAmount         Float
+  currentAmount        Float                 @default(0)
+  currency             String                @default("RSD")
+  categoryId           String
+  period               String                @default("monthly")
+  targetDate           DateTime?
+  isRecurring          Boolean               @default(false)
+  recurringFrequency   String?
+  recurringDayOfMonth  Int?
+  recurringAmount      Float?
+  isActive             Boolean               @default(true)
+  color                String                @default("#FFD700")
+  icon                 String                @default("CurrencyDollar")
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category             Category              @relation(fields: [categoryId], references: [id])
+  group                Group?                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  contributions        SavingsContribution[]
+
+  @@index([userId])
+  @@index([groupId])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model SavingsContribution {
+  id            String      @id @default(cuid())
+  savingsGoalId String
+  userId        String
+  groupId       String?
+  expenseId     String?
+  amount        Float
+  currency      String      @default("RSD")
+  description   String?
+  isAutomatic   Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  savingsGoal   SavingsGoal @relation(fields: [savingsGoalId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group         Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense       Expense?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([savingsGoalId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([groupId])
+  @@index([expenseId])
+}

@@ -1,0 +1,430 @@
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getUser } from "@/lib/auth"
+import { convertCurrency, getExchangeRates } from "@/lib/currency"
+import { invalidateInsightsCache } from "@/app/api/financial-insights/route"
+
+// Enable caching for better performance
+export const dynamic = 'force-dynamic'
+export const revalidate = 10 // Cache for 10 seconds
+
+export async function GET(req: Request) {
+  const user = await getUser()
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { searchParams } = new URL(req.url)
+  const month = searchParams.get("month")
+  const year = searchParams.get("year")
+  const groupFilter = searchParams.get("groupFilter") // 'all' | 'personal' | groupId
+
+  // Get user's active group
+  const userWithGroup = await prisma.user.findUnique({
+    where: { id: user.userId },
+    select: { activeGroupId: true }
+  })
+
+  let whereClause: any = {
+    userId: user.userId,
+  }
+
+  // Filter by group context
+  if (groupFilter === 'all') {
+    // Show all expenses (no group filter)
+  } else if (groupFilter === 'personal') {
+    // Show only personal expenses (no group)
+    whereClause.groupId = null
+  } else if (groupFilter && groupFilter !== 'null') {
+    // Show expenses for specific group
+    whereClause.groupId = groupFilter
+  } else {
+    // Default behavior: if user has active group, show ONLY that group's expenses
+    // Otherwise show personal expenses (groupId: null)
+    if (userWithGroup?.activeGroupId) {
+      whereClause.groupId = userWithGroup.activeGroupId
+    } else {
+      whereClause.groupId = null
+    }
+  }
+
+  // If month and year are provided, filter by date range
+  if (month && year) {
+    const startDate = new Date(Number(year), Number(month) - 1, 1)
+    const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59)
+    
+    whereClause.date = {
+      gte: startDate,
+      lte: endDate,
+    }
+  }
+
+  const expenses = await prisma.expense.findMany({
+    where: whereClause,
+    include: {
+      category: {
+        select: {
+          id: true,
+          name: true,
+          icon: true,
+          color: true
+        }
+      },
+      group: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      recurringExpense: {
+        select: {
+          id: true,
+          frequency: true,
+          nextExecutionAt: true
+        }
+      },
+      splits: {
+        include: {
+          owedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: {
+          isPaid: 'asc'
+        }
+      }
+    },
+    orderBy: {
+      date: "desc",
+    },
+  })
+
+  console.log(`📊 Query filter: groupFilter="${groupFilter}", activeGroupId="${userWithGroup?.activeGroupId}", whereClause.groupId="${whereClause.groupId}"`);
+  console.log(`Found ${expenses.length} expenses`);
+  if (expenses.length > 0) {
+    console.log('First 3 expenses:');
+    expenses.slice(0, 3).forEach((exp: any) => {
+      console.log(`  - ${exp.description}: groupId=${exp.groupId}, amount=${exp.amount}, date=${exp.date}`);
+    });
+  }
+
+  return NextResponse.json(expenses)
+}
+
+export async function POST(req: Request) {
+  try {
+    const user = await getUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { amount, description, date, categoryId, receiptUrl, groupId, splitAmount, note, currency, isRecurring, recurringType, nextRecurringDate, splitWithGroup, participants, savingsGoalId } = await req.json()
+
+    console.log('📝 Creating expense with currency:', currency)
+    console.log('💰 Savings goal ID:', savingsGoalId)
+    console.log('👥 Split with group:', splitWithGroup, 'Participants:', participants)
+
+    // Parse date with proper timezone handling
+    // If date is provided as string (YYYY-MM-DD), convert to Date with current time
+    // to preserve timezone information
+    let transactionDate: Date
+    if (date) {
+      const dateObj = new Date(date)
+      // If time is midnight (00:00:00), it means only date was provided
+      // Use current time to preserve timezone
+      if (dateObj.getUTCHours() === 0 && dateObj.getUTCMinutes() === 0 && dateObj.getUTCSeconds() === 0) {
+        const now = new Date()
+        dateObj.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds())
+      }
+      transactionDate = dateObj
+    } else {
+      transactionDate = new Date()
+    }
+
+    console.log('📅 Transaction date:', transactionDate.toISOString())
+
+    // Konvertuj u RSD za statistike
+    const expenseCurrency = currency || "RSD"
+    let amountInRSD = parseFloat(amount)
+    
+    if (expenseCurrency !== "RSD") {
+      try {
+        const rates = await getExchangeRates()
+        amountInRSD = await convertCurrency(parseFloat(amount), expenseCurrency, "RSD")
+        console.log(`💱 Converted ${amount} ${expenseCurrency} to ${amountInRSD} RSD`)
+      } catch (error) {
+        console.error('Error converting currency:', error)
+        // Ako konverzija ne uspe, koristi originalni iznos
+      }
+    }
+
+    // Automatski dodeli activeGroupId ako korisnik ima aktivnu grupu
+    // Osim ako je eksplicitno prosleđen groupId (npr. iz group dashboard-a)
+    let finalGroupId = groupId && groupId.trim() !== "" ? groupId : null
+    
+    // Ako nije eksplicitno prosleđen groupId, proveri activeGroupId
+    if (!finalGroupId) {
+      const userWithActiveGroup = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { activeGroupId: true }
+      })
+      
+      if (userWithActiveGroup?.activeGroupId) {
+        finalGroupId = userWithActiveGroup.activeGroupId
+        console.log(`📍 Using user's active group: ${finalGroupId}`)
+      }
+    }
+
+    const expense = await prisma.expense.create({
+      data: {
+        amount: parseFloat(amount),
+        amountInRSD: amountInRSD,
+        description,
+        date: transactionDate,
+        categoryId,
+        userId: user.userId,
+        receiptUrl,
+        groupId: splitWithGroup ? groupId : finalGroupId,
+        splitAmount: splitAmount ? parseFloat(splitAmount) : null,
+        note: note || null,
+        currency: expenseCurrency,
+      },
+      include: {
+        category: true,
+        recurringExpense: true,
+      },
+    })
+
+    console.log(`✅ Expense created: ${expense.id} with groupId: ${splitWithGroup ? groupId : finalGroupId}`)
+
+    // Check if this is a "Štednja" (Savings) category expense
+    // If so, automatically create a savings contribution
+    try {
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { isSavings: true, name: true }
+      })
+
+      console.log(`📊 Category check:`, { categoryId, isSavings: category?.isSavings, name: category?.name })
+
+      if (category?.isSavings) {
+        console.log(`💰 Detected savings category expense - creating contribution`)
+        
+        let savingsGoal
+        
+        // If savingsGoalId is provided, use it directly
+        if (savingsGoalId) {
+          console.log(`🎯 Using specified savings goal: ${savingsGoalId}`)
+          savingsGoal = await prisma.savingsGoal.findFirst({
+            where: {
+              id: savingsGoalId,
+              userId: user.userId,
+              isActive: true
+            }
+          })
+          
+          if (!savingsGoal) {
+            console.error(`❌ Specified savings goal not found or not owned by user: ${savingsGoalId}`)
+            throw new Error('Specified savings goal not found')
+          }
+        } else {
+          // Fallback: Find or create a default savings goal for this category
+          console.log(`🔍 No savings goal specified, finding default...`)
+          savingsGoal = await prisma.savingsGoal.findFirst({
+            where: {
+              userId: user.userId,
+              categoryId: categoryId,
+              groupId: finalGroupId,
+              isActive: true
+            },
+            orderBy: { createdAt: 'desc' } // Use most recent goal
+          })
+        }
+
+        // If no savings goal exists at all, create a default one
+        if (!savingsGoal) {
+          const defaultTargetAmount = 100000 // Default target: 100,000 RSD
+          savingsGoal = await prisma.savingsGoal.create({
+            data: {
+              userId: user.userId,
+              groupId: finalGroupId,
+              categoryId: categoryId,
+              name: `${category.name} - Cilj`,
+              targetAmount: defaultTargetAmount,
+              currentAmount: 0,
+              currency: 'RSD',
+              period: 'monthly',
+              isRecurring: false,
+              color: '#FFD700',
+              icon: 'CurrencyCircleDollar',
+              isActive: true
+            }
+          })
+          console.log(`✅ Created default savings goal: ${savingsGoal.name}`)
+        }
+
+        // Convert amount to goal's currency if needed
+        let amountForGoal = amountInRSD
+        let contributionCurrency = 'RSD'
+        
+        if (savingsGoal.currency !== 'RSD') {
+          console.log(`💱 Converting ${amountInRSD} RSD to ${savingsGoal.currency}`)
+          amountForGoal = await convertCurrency(amountInRSD, 'RSD', savingsGoal.currency)
+          contributionCurrency = savingsGoal.currency
+          console.log(`✅ Converted: ${amountForGoal} ${savingsGoal.currency}`)
+        }
+
+        // Create savings contribution (store in goal's currency)
+        await prisma.savingsContribution.create({
+          data: {
+            savingsGoalId: savingsGoal.id,
+            amount: amountForGoal, // Use converted amount
+            currency: contributionCurrency, // Use goal's currency
+            userId: user.userId,
+            groupId: finalGroupId,
+            description: description || `Štednja - ${new Date().toLocaleDateString('sr-RS')}`,
+            expenseId: expense.id // Link contribution to this expense
+          }
+        })
+
+        // Update savings goal current amount (use converted amount)
+        await prisma.savingsGoal.update({
+          where: { id: savingsGoal.id },
+          data: {
+            currentAmount: {
+              increment: amountForGoal // Use converted amount
+            }
+          }
+        })
+
+        console.log(`✅ Added ${amountForGoal} ${savingsGoal.currency} to savings goal "${savingsGoal.name}"`)
+      }
+    } catch (savingsError) {
+      console.error('⚠️ Error processing savings category:', savingsError)
+      // Don't fail the expense creation if savings processing fails
+    }
+
+    // Invalidate AI insights cache after creating expense
+    invalidateInsightsCache(user.userId)
+
+    // Ako je trošak podeljen sa grupom, kreiraj Split zapise za svaku osobu
+    if (splitWithGroup && groupId && participants && Array.isArray(participants) && participants.length > 0) {
+      console.log('💰 Creating splits:', {
+        groupId,
+        expenseId: expense.id,
+        participants,
+        userId: user.userId,
+        amount: parseFloat(amount)
+      })
+      
+      const amountPerPerson = parseFloat(amount) / participants.length
+      
+      // Kreiraj Split zapis za svakog učesnika osim trenutnog korisnika (jer on ne duguje sebi)
+      const splitPromises = participants
+        .filter(participantId => participantId !== user.userId)
+        .map(participantId => {
+          console.log(`  → Creating split: ${user.userId} paid, ${participantId} owes ${amountPerPerson}`)
+          return prisma.split.create({
+            data: {
+              groupId: groupId,
+              expenseId: expense.id,
+              paidById: user.userId, // Ko je platio
+              owedById: participantId, // Ko duguje
+              amount: amountPerPerson,
+              currency: expenseCurrency,
+              isPaid: false,
+            }
+          })
+        })
+      
+      await Promise.all(splitPromises)
+      console.log(`✅ Created ${splitPromises.length} split records for expense ${expense.id}`)
+      
+      // Kreiraj notifikacije za sve učesnike osim trenutnog korisnika
+      const group = await prisma.group.findUnique({
+        where: { id: groupId },
+        select: { name: true }
+      })
+      
+      const currentUser = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { name: true }
+      })
+      
+      const notificationPromises = participants
+        .filter(participantId => participantId !== user.userId)
+        .map(participantId => {
+          return prisma.notification.create({
+            data: {
+              userId: participantId,
+              type: 'EXPENSE_ADDED',
+              title: 'Novi dug u grupi',
+              message: `Dugujete ${amountPerPerson.toFixed(2)} ${expenseCurrency} za "${description}" - ${currentUser?.name || 'Član'} je platio u grupi "${group?.name || 'Grupa'}"`,
+              isRead: false,
+              groupId: groupId,
+              expenseId: expense.id,
+              fromUserId: user.userId
+            }
+          })
+        })
+      
+      await Promise.all(notificationPromises)
+      console.log(`✅ Sent ${notificationPromises.length} notifications for expense ${expense.id}`)
+    }
+
+    // Check budget alerts after creating expense
+    try {
+      const { checkUserBudgetAlerts } = await import('@/lib/budget-alerts')
+      const alerts = await checkUserBudgetAlerts(user.userId, categoryId)
+      
+      if (alerts.length > 0) {
+        console.log(`💰 Budget alerts triggered for user ${user.userId}:`, alerts)
+        // Alerts are automatically saved to database by checkUserBudgetAlerts
+      }
+    } catch (error) {
+      console.error('Error checking budget alerts:', error)
+      // Don't fail expense creation if budget check fails
+    }
+
+    // Ako je isRecurring true, kreiraj RecurringExpense
+    if (isRecurring && recurringType && nextRecurringDate) {
+      const dayOfMonth = body.dayOfMonth || new Date(nextRecurringDate).getDate()
+      
+      await prisma.recurringExpense.create({
+        data: {
+          userId: user.userId,
+          amount: parseFloat(amount),
+          description,
+          frequency: recurringType,
+          nextExecutionAt: new Date(nextRecurringDate),
+          categoryId: categoryId,
+          dayOfMonth: dayOfMonth,
+          expenses: {
+            connect: { id: expense.id }
+          }
+        }
+      })
+    }
+
+    // Vrati expense sa relacijom
+    const createdExpense = await prisma.expense.findUnique({
+      where: { id: expense.id },
+      include: {
+        category: true,
+        recurringExpense: true,
+      }
+    })
+
+    return NextResponse.json(createdExpense, { status: 201 })
+  } catch (error: any) {
+    console.error('Create expense error:', error)
+    return NextResponse.json({ 
+      error: "Greška pri kreiranju troška",
+      details: error.message 
+    }, { status: 500 })
+  }
+}
