@@ -141,7 +141,7 @@ export default function BudgetStatistics({
             <div key={cat.categoryId} className="space-y-1">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-300">{cat.categoryName}</span>
+                  <span className="text-xl">{cat.categoryIcon}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-white font-medium">
