@@ -185,9 +185,6 @@ export default function GroupBudgetProgress({
                     <>
                       <span className="text-2xl">{budget.category.icon}</span>
                       <div>
-                        <h4 className="font-semibold text-white">
-                          {budget.category.name}
-                        </h4>
                         <p className="text-xs text-gray-400">
                           {budget.period === 'MONTHLY' ? 'Mesečno' : 'Godišnje'} • Postavio: {budget.user.name}
                         </p>
