@@ -356,7 +356,7 @@ export default function GroupClient({ groupId }: { groupId: string }) {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-semibold truncate" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>{expense.description}</div>
-                            <div className="text-xs truncate" style={{color: "#C339B5", opacity: 0.6}}>{expense.category?.name} • {expense.user.name}</div>
+                            <div className="text-xs truncate flex items-center gap-1" style={{color: "#C339B5", opacity: 0.6}}><span>{expense.category?.icon}</span> • {expense.user.name}</div>
                           </div>
                         </div>
                         <div className="text-base font-bold ml-3 flex-shrink-0" style={{color: "#C339B5"}}>-{expense.amount.toLocaleString()} RSD</div>
@@ -395,7 +395,7 @@ export default function GroupClient({ groupId }: { groupId: string }) {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-semibold truncate" style={{color: "#FFFFFF", fontFamily: "\"Inter\", sans-serif"}}>{income.description}</div>
-                            <div className="text-xs truncate" style={{color: "#1FBFA4", opacity: 0.6}}>{income.category?.name} • {income.user.name}</div>
+                            <div className="text-xs truncate flex items-center gap-1" style={{color: "#1FBFA4", opacity: 0.6}}><span>{income.category?.icon}</span> • {income.user.name}</div>
                           </div>
                         </div>
                         <div className="text-base font-bold ml-3 flex-shrink-0" style={{color: "#1FBFA4"}}>+{income.amount.toLocaleString()} RSD</div>
