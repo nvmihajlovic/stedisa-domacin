@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Users, CreditCard, Coins, Warning, EnvelopeSimple, CheckCircle, Gift, TrendDown, Handshake, X, Trash } from "phosphor-react"
+import { Bell, Users, CreditCard, Coins, Warning, EnvelopeSimple, CheckCircle, Gift, TrendDown, TrendUp, Handshake, X, Trash } from "phosphor-react"
 import { useToast } from "@/hooks/useToast"
 
 interface Notification {
@@ -176,7 +176,7 @@ export default function NotificationBell() {
       case "GROUP_REMOVE":
         return <Users {...iconProps} style={{ color: '#FF6B9D' }} />
       case "EXPENSE_ADDED": 
-        return <CreditCard {...iconProps} style={{ color: '#FF6B9D' }} />
+        return <TrendDown {...iconProps} style={{ color: '#C339B5' }} />
       case "EXPENSE_UPDATED":
         return <CreditCard {...iconProps} style={{ color: '#FFB84D' }} />
       case "EXPENSE_DELETED":
@@ -194,7 +194,7 @@ export default function NotificationBell() {
       case "PAYMENT_RECEIVED": 
         return <CheckCircle {...iconProps} style={{ color: '#10B981' }} />
       case "INCOME_ADDED":
-        return <TrendDown {...iconProps} style={{ color: '#10B981' }} />
+        return <TrendUp {...iconProps} style={{ color: '#1FBFA4' }} />
       case "SETTLEMENT_PAID":
         return <Handshake {...iconProps} style={{ color: '#10B981' }} />
       default: 
