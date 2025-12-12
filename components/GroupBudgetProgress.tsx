@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Wallet, TrendingUp, AlertCircle, Plus, Pencil, Trash2, ChevronDown, ChevronUp, Users } from 'lucide-react'
 import BudgetStatistics from './BudgetStatistics'
+import { getIcon } from '@/lib/iconMapping'
 
 interface GroupBudget {
   id: string
@@ -183,7 +184,14 @@ export default function GroupBudgetProgress({
                 <div className="flex items-center gap-3">
                   {budget.category ? (
                     <>
-                      <span className="text-2xl">{budget.category.icon}</span>
+                      {(() => {
+                        const IconComponent = getIcon(budget.category.icon)
+                        return (
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: budget.category.color + '20', color: budget.category.color }}>
+                            <IconComponent size={24} weight="duotone" />
+                          </div>
+                        )
+                      })()}
                       <div>
                         <p className="text-xs text-gray-400">
                           {budget.period === 'MONTHLY' ? 'Mesečno' : 'Godišnje'} • Postavio: {budget.user.name}
